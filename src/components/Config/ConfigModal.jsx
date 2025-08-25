@@ -329,7 +329,7 @@ const EmailSection = ({ data, templates, onChange, onTemplateChange }) => (
       />
       
       <p className="text-xs text-gray-500 mt-1">
-        Verfügbare Variablen: {{`{invoiceNumber}`}}, {{`{amount}`}}, {{`{currency}`}}, {{`{customerName}`}}, {{`{companyName}`}}, {{`{dueDate}`}}
+        Verfügbare Variablen: {`{{invoiceNumber}}`}, {`{{amount}}`}, {`{{currency}}`}, {`{{customerName}}`}, {`{{companyName}}`}, {`{{dueDate}}`}
       </p>
     </div>
   </div>
