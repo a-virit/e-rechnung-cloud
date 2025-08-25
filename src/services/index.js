@@ -1,7 +1,4 @@
 // src/services/index.js - Service Layer Export
-export { invoiceService } from './invoiceService';
-export { customerService } from './customerService';
-export { configService } from './configService';
 
 // src/services/baseService.js - Basis Service mit gemeinsamen Funktionen
 class BaseService {
@@ -484,6 +481,7 @@ Mit freundlichen Grüßen
 }
 
 // Service Instanzen erstellen und exportieren
+// WICHTIG: Nur einmal exportieren!
 export const invoiceService = new InvoiceService();
 export const customerService = new CustomerService();
 export const configService = new ConfigService();
