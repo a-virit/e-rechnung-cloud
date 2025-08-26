@@ -1,7 +1,4 @@
-// ===================================================
-// src/services/invoiceService.js - API Abstraction
-// ===================================================
-
+// src/services/invoiceService.js
 class InvoiceService {
   async getAll() {
     try {
@@ -58,3 +55,5 @@ class InvoiceService {
     return await response.json();
   }
 }
+
+export const invoiceService = new InvoiceService();

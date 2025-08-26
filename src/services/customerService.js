@@ -1,7 +1,4 @@
-// ===================================================
 // src/services/customerService.js
-// ===================================================
-
 class CustomerService {
   async getAll() {
     try {
@@ -45,3 +42,5 @@ class CustomerService {
     return await response.json();
   }
 }
+
+export const customerService = new CustomerService();

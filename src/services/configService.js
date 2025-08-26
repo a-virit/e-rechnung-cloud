@@ -1,7 +1,4 @@
-// ===================================================
 // src/services/configService.js
-// ===================================================
-
 class ConfigService {
   async get() {
     try {
@@ -26,7 +23,4 @@ class ConfigService {
   }
 }
 
-// Service Instances exportieren
-export const invoiceService = new InvoiceService();
-export const customerService = new CustomerService();
 export const configService = new ConfigService();
