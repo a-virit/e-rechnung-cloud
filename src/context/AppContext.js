@@ -17,6 +17,13 @@ const initialState = {
     templates: { invoice: {} },
     invoice: {}
   },
+
+  // NEU: Test-E-Mail Status
+  testEmailStatus: { 
+    status: 'idle', // 'idle', 'sending', 'success', 'error'
+    message: '', 
+    timestamp: null 
+  },
   
   // UI State
   loading: true,
@@ -49,6 +56,10 @@ const initialState = {
 
 // Action Types
 const ActionTypes = {
+  // NEU: Test-E-Mail Actions
+  SET_TEST_EMAIL_STATUS: 'SET_TEST_EMAIL_STATUS',
+  CLEAR_TEST_EMAIL_STATUS: 'CLEAR_TEST_EMAIL_STATUS',
+
   // Data Actions
   SET_INVOICES: 'SET_INVOICES',
   SET_CUSTOMERS: 'SET_CUSTOMERS',
@@ -74,6 +85,24 @@ const ActionTypes = {
 // Reducer Function
 function appReducer(state, action) {
   switch (action.type) {
+    
+    // NEU: Test-E-Mail Reducer Cases
+    case ActionTypes.SET_TEST_EMAIL_STATUS:
+      return {
+        ...state,
+        testEmailStatus: {
+          status: action.payload.status,
+          message: action.payload.message,
+          timestamp: new Date().toISOString()
+        }
+      };
+
+    case ActionTypes.CLEAR_TEST_EMAIL_STATUS:
+      return {
+        ...state,
+        testEmailStatus: { status: 'idle', message: '', timestamp: null }
+      };
+
     case ActionTypes.SET_INVOICES:
       return { 
         ...state, 
@@ -216,6 +245,55 @@ export function AppProvider({ children }) {
 
   // Actions Object
   const actions = {
+
+    // NEU: Test-E-Mail-Funktionen
+  sendTestEmail: async (emailConfig, companyConfig) => {
+    dispatch({ 
+      type: ActionTypes.SET_TEST_EMAIL_STATUS, 
+      payload: { status: 'sending', message: 'Test-E-Mail wird versendet...' }
+    });
+
+    try {
+      const response = await fetch('/api/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailConfig,
+          companyConfig
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        dispatch({ 
+          type: ActionTypes.SET_TEST_EMAIL_STATUS, 
+          payload: { 
+            status: 'success', 
+            message: `✅ Test-E-Mail erfolgreich versendet über ${result.data.provider}! Überprüfen Sie: ${emailConfig.senderEmail}`
+          }
+        });
+      } else {
+        throw new Error(result.error);
+      }
+
+      return result;
+    } catch (error) {
+      dispatch({ 
+        type: ActionTypes.SET_TEST_EMAIL_STATUS, 
+        payload: { 
+          status: 'error', 
+          message: `❌ Test-Versand fehlgeschlagen: ${error.message}`
+        }
+      });
+      throw error;
+    }
+  },
+
+  clearTestEmailStatus: () => {
+    dispatch({ type: ActionTypes.CLEAR_TEST_EMAIL_STATUS });
+  },
+
     // === INVOICE ACTIONS ===
     refreshInvoices: async () => {
       dispatch({ type: ActionTypes.SET_LOADING, payload: true });
