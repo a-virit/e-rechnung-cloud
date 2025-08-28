@@ -1,38 +1,86 @@
-// src/App.js - Hauptkomponente (nur noch ~50 Zeilen)
+// src/App.js - Mit vollständiger Authentication
 import React, { useState } from 'react';
+import { AuthProvider } from './context/AuthContext';
+import { AppProvider } from './context/AppContext';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
 import Header from './components/Layout/Header';
 import Navigation from './components/Layout/Navigation';
 import Dashboard from './components/Dashboard/Dashboard';
 import InvoiceList from './components/Invoices/InvoiceList';
 import CustomerManagement from './components/Customers/CustomerManagement';
+import UserManagement from './components/Users/UserManagement';
 import CustomerModal from './components/Customers/CustomerModal';
 import ConfigModal from './components/Config/ConfigModal';
 import InvoiceModal from './components/Invoices/InvoiceModal';
-import { AppProvider } from './context/AppContext';
 
 const App = () => {
+  return (
+    <AuthProvider>
+      <ProtectedRoute>
+        <AppProvider>
+          <AuthenticatedApp />
+        </AppProvider>
+      </ProtectedRoute>
+    </AuthProvider>
+  );
+};
+
+const AuthenticatedApp = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  return (
-    <AppProvider>
-      <div className="min-h-screen bg-gray-100">
-        <Header />
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard />;
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
-          
-          {/* Content */}
-          {activeTab === 'dashboard' && <Dashboard />}
-          {activeTab === 'invoices' && <InvoiceList />}
-          {activeTab === 'customers' && <CustomerManagement />}
-        </div>
+      case 'invoices':
+        return (
+          <ProtectedRoute requirePermission={{ resource: 'invoices', action: 'create' }}>
+            <InvoiceList />
+          </ProtectedRoute>
+        );
+        
+      case 'customers':
+        return (
+          <ProtectedRoute requirePermission={{ resource: 'customers', action: 'create' }}>
+            <CustomerManagement />
+          </ProtectedRoute>
+        );
+        
+      case 'users':
+        return (
+          <ProtectedRoute requireRole="admin">
+            <UserManagement />
+          </ProtectedRoute>
+        );
+        
+      default:
+        return <Dashboard />;
+    }
+  };
 
-        {/* Modals */}
-        <CustomerModal />
-        <ConfigModal />
-        <InvoiceModal />
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <Header />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        {renderContent()}
       </div>
-    </AppProvider>
+
+      {/* Modals - Mit Permission-Schutz */}
+      <ProtectedRoute requirePermission={{ resource: 'customers', action: 'create' }}>
+        <CustomerModal />
+      </ProtectedRoute>
+      
+      <ProtectedRoute requireRole="admin">
+        <ConfigModal />
+      </ProtectedRoute>
+      
+      <ProtectedRoute requirePermission={{ resource: 'invoices', action: 'create' }}>
+        <InvoiceModal />
+      </ProtectedRoute>
+    </div>
   );
 };
 

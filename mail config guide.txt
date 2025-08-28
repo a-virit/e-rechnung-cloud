@@ -1,0 +1,101 @@
+# .env.example - Umgebungsvariablen für E-Mail-Services
+
+# ============================================
+# E-MAIL SERVICE KONFIGURATION
+# ============================================
+# Wählen Sie EINEN der folgenden Provider:
+
+# SendGrid (Empfohlen - Einfach & Zuverlässig)
+SENDGRID_API_KEY=your_sendgrid_api_key_here
+
+# Mailgun (Entwicklerfreundlich)
+MAILGUN_API_KEY=your_mailgun_api_key_here
+MAILGUN_DOMAIN=your_mailgun_domain_here
+
+# Postmark (Premium Transactional)
+POSTMARK_SERVER_TOKEN=your_postmark_server_token_here
+
+# ============================================
+# VERCEL DEPLOYMENT KONFIGURATION
+# ============================================
+
+# Produktions-URL (wird automatisch gesetzt)
+VERCEL_URL=https://ihr-app-name.vercel.app
+
+# ============================================
+# SETUP-ANLEITUNG
+# ============================================
+
+# 1. SENDGRID SETUP (Empfohlen):
+#    - Registrieren: https://sendgrid.com/
+#    - API-Key erstellen: Settings > API Keys > Create API Key
+#    - Full Access wählen
+#    - Domain verifizieren (optional aber empfohlen)
+#    - Kosten: 100 E-Mails/Tag kostenlos, dann ab $14.95/Monat
+
+# 2. MAILGUN SETUP:
+#    - Registrieren: https://mailgun.com/
+#    - Domain hinzufügen und DNS-Records konfigurieren
+#    - API-Key aus Account > Settings > API Keys
+#    - Kosten: 1.000 E-Mails/Monat kostenlos, dann $35/Monat
+
+# 3. POSTMARK SETUP:
+#    - Registrieren: https://postmarkapp.com/
+#    - Server erstellen und Domain verifizieren
+#    - Server Token aus Servers > Your Server > API Tokens
+#    - Kosten: 100 E-Mails/Monat kostenlos, dann $10/Monat
+
+# ============================================
+# VERCEL DEPLOYMENT SCHRITTE
+# ============================================
+
+# 1. Repository zu Vercel verbinden
+# 2. Environment Variables in Vercel Dashboard eintragen:
+#    Project Settings > Environment Variables
+#    
+#    Beispiel für SendGrid:
+#    SENDGRID_API_KEY = SG.xxxxxxxxxxxxxx
+#    VERCEL_URL = https://ihr-projekt.vercel.app
+
+# 3. Deploy ausführen:
+#    git add .
+#    git commit -m "Add external email provider integration"
+#    git push origin main
+
+# ============================================
+# SICHERHEITS-CHECKLISTE
+# ============================================
+
+# ✅ API-Keys niemals im Frontend-Code
+# ✅ Umgebungsvariablen nur server-seitig verwenden
+# ✅ HTTPS für alle E-Mail-Provider-Kommunikation
+# ✅ Rate-Limiting für E-Mail-Versand implementieren
+# ✅ Input-Validation für alle E-Mail-Daten
+# ✅ Logging für Audit-Zwecke
+# ✅ Fehlerbehandlung mit aussagekräftigen Nachrichten
+
+# ============================================
+# PRODUCTION-READY CHECKLIST
+# ============================================
+
+# 🔒 Sicherheit:
+# - [ ] API-Keys in Vercel Environment Variables
+# - [ ] E-Mail-Validation implementiert
+# - [ ] Rate-Limiting aktiviert
+# - [ ] Error-Logging konfiguriert
+
+# 📧 E-Mail-Konfiguration:
+# - [ ] Provider API-Key getestet
+# - [ ] Domain-Verifizierung abgeschlossen (falls erforderlich)
+# - [ ] SPF/DKIM Records gesetzt
+# - [ ] Test-E-Mail erfolgreich versendet
+
+# 🚀 Performance:
+# - [ ] E-Mail-Versand asynchron
+# - [ ] Retry-Logic bei Fehlern
+# - [ ] Queue für große Mengen (falls erforderlich)
+
+# 📊 Monitoring:
+# - [ ] E-Mail-Delivery-Status tracking
+# - [ ] Fehlerprotokollierung
+# - [ ] Performance-Metriken
