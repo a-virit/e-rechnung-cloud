@@ -24,7 +24,7 @@ const Header = () => {
 
   const handleLogout = () => {
     setShowUserMenu(false);
-    if (confirm('Möchten Sie sich wirklich abmelden?')) {
+    if (window.confirm('Möchten Sie sich wirklich abmelden?')) {
       logout();
     }
   };

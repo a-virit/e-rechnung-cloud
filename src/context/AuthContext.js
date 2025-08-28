@@ -187,7 +187,7 @@ export const AuthProvider = ({ children }) => {
       warningId = setTimeout(() => {
         const remaining = Math.ceil((lastActivity + (TIMEOUT_MINUTES * 60 * 1000) - Date.now()) / 60000);
         if (remaining > 0) {
-          const extendSession = confirm(
+          const extendSession = window.confirm(
             `Ihre Sitzung läuft in ${remaining} Minute(n) ab.\n\nMöchten Sie die Sitzung verlängern?`
           );
           

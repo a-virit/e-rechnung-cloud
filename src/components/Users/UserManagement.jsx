@@ -52,7 +52,7 @@ const UserManagement = () => {
   };
 
   const handleDeleteUser = async (userId, userName) => {
-    if (!confirm(`Benutzer "${userName}" wirklich löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.`)) {
+    if (!window.confirm(`Benutzer "${userName}" wirklich löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.`)) {
       return;
     }
 
