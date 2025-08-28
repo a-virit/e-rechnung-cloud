@@ -181,7 +181,6 @@ const ConfigModal = () => {
     setSaving(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      // Hier würde die echte API-Calls stehen
       alert('✅ Konfiguration erfolgreich gespeichert!');
       handleClose();
     } catch (error) {
@@ -192,6 +191,7 @@ const ConfigModal = () => {
   };
 
   if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
@@ -259,10 +259,9 @@ const ConfigModal = () => {
           </nav>
         </div>
 
-        {/* Content */}
-        <div className="p-6 max-h-[calc(90vh-200px)] overflow-y-auto"></div>
-
-        {/* Unternehmen Tab */}
+        {/* Content - HIER IST DER FIX */}
+        <div className="p-6 max-h-[calc(90vh-200px)] overflow-y-auto">
+          {/* Unternehmen Tab */}
           {activeTab === 'company' && (
             <div className="space-y-6">
               <div>
@@ -362,6 +361,7 @@ const ConfigModal = () => {
               </div>
             </div>
           )}
+
           {/* E-Mail Tab */}
           {activeTab === 'email' && (
             <div className="space-y-6">
@@ -453,6 +453,7 @@ const ConfigModal = () => {
                   </div>
                 </div>
               </div>
+
               {/* Domain-Verifikation */}
               {domainStatus.domain && (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
@@ -536,6 +537,7 @@ const ConfigModal = () => {
               )}
             </div>
           )}
+
           {/* Usage Tab */}
           {activeTab === 'usage' && (
             <div className="space-y-6">
@@ -642,6 +644,7 @@ const ConfigModal = () => {
               </div>
             </div>
           )}
+
           {/* Preview Tab */}
           {activeTab === 'preview' && (
             <div className="space-y-6">
@@ -697,23 +700,23 @@ const ConfigModal = () => {
                     <h4 className="font-medium text-gray-900 mb-3">Rechnungsdaten:</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
-                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{`{{invoiceNumber}}`}</code>
+                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{{invoiceNumber}}</code>
                         <span className="text-gray-600">RE-2025-001</span>
                       </div>
                       <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
-                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{`{{amount}}`}</code>
+                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{{amount}}</code>
                         <span className="text-gray-600">1.190,00</span>
                       </div>
                       <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
-                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{`{{currency}}`}</code>
+                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{{currency}}</code>
                         <span className="text-gray-600">EUR</span>
                       </div>
                       <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
-                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{`{{date}}`}</code>
+                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{{date}}</code>
                         <span className="text-gray-600">26.08.2025</span>
                       </div>
                       <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
-                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{`{{dueDate}}`}</code>
+                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{{dueDate}}</code>
                         <span className="text-gray-600">25.09.2025</span>
                       </div>
                     </div>
@@ -723,11 +726,11 @@ const ConfigModal = () => {
                     <h4 className="font-medium text-gray-900 mb-3">Firmen-/Kundendaten:</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
-                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{`{{companyName}}`}</code>
+                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{{companyName}}</code>
                         <span className="text-gray-600">{emailConfig.senderName || companyData.name || 'Ihr Unternehmen'}</span>
                       </div>
                       <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
-                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{`{{customerName}}`}</code>
+                        <code className="bg-white px-2 py-1 rounded font-mono text-xs">{{customerName}}</code>
                         <span className="text-gray-600">Mustermann GmbH</span>
                       </div>
                     </div>
@@ -736,7 +739,7 @@ const ConfigModal = () => {
               </div>
             </div>
           )}
-          </div>
+        </div>
 
         {/* Footer mit Action Buttons */}
         <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
@@ -799,6 +802,7 @@ const ConfigModal = () => {
           </div>
         </div>
       </div>
+    </div>
   );
 };
 
