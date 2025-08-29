@@ -1,6 +1,7 @@
 // src/components/Layout/Navigation.jsx
 import React from 'react';
-import { BarChart3, FileText, Users } from 'lucide-react';
+import { BarChart3, FileText, Users, Settings } from 'lucide-react';
+
 import { useApp } from '../../context/AppContext';
 
 const Navigation = ({ activeTab, setActiveTab }) => {
@@ -27,6 +28,12 @@ const Navigation = ({ activeTab, setActiveTab }) => {
       icon: Users,
       count: customers.length,
       description: 'Kundendaten verwalten'
+    },
+    {
+    id: 'settings',
+    label: 'Einstellungen', 
+    icon: Settings,
+    description: 'Profile und Systemkonfiguration'
     }
   ];
 

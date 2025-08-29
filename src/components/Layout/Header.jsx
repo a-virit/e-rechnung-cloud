@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FileText, User, LogOut, Settings, Shield, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const Header = () => {
+const Header = ({ setActiveTab }) => {
   const { user, logout, hasRole } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef(null);
@@ -143,7 +143,7 @@ const Header = () => {
                     className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors"
                     onClick={() => {
                       setShowUserMenu(false);
-                      alert('Profil-Bearbeitung wird in der nächsten Version implementiert...');
+                      setActiveTab('settings'); // ⬅️ Diese Funktion von AuthenticatedApp übergeben
                     }}
                   >
                     <User className="w-4 h-4 mr-3 text-gray-400" />
@@ -158,10 +158,9 @@ const Header = () => {
                     <button
                       className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors"
                       onClick={() => {
-                        setShowUserMenu(false);
-                        // TODO: Config Modal öffnen über AppContext
-                        alert('Systemeinstellungen werden geöffnet...');
-                      }}
+  setShowUserMenu(false);
+  setActiveTab('settings'); // ⬅️ Diese Funktion übergeben
+}}
                     >
                       <Settings className="w-4 h-4 mr-3 text-gray-400" />
                       <div>

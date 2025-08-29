@@ -12,6 +12,8 @@ import UserManagement from './components/Users/UserManagement';
 import CustomerModal from './components/Customers/CustomerModal';
 import ConfigModal from './components/Config/ConfigModal';
 import InvoiceModal from './components/Invoices/InvoiceModal';
+import ProfileSystemSettings from './components/Settings/ProfileSystemSettings';
+
 
 const App = () => {
   return (
@@ -47,7 +49,9 @@ const AuthenticatedApp = () => {
             <UserManagement />
           </ProtectedRoute>
         );
-        
+      // 🆕 NEUE ROUTE
+      case 'settings':
+        return <ProfileSystemSettings />;
       default:
         return <Dashboard />;
     }
@@ -55,7 +59,7 @@ const AuthenticatedApp = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header />
+      <Header setActiveTab={setActiveTab} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
