@@ -128,11 +128,13 @@ export function hasPermission(user, resource, action) {
 
   const userPermissions = rolePermissions[user.role];
   if (!userPermissions) {
+    console.log(`❌ No permissions defined for role: ${user.role}`);
     return false;
   }
 
   const resourcePermissions = userPermissions[resource];
   if (!resourcePermissions) {
+    console.log(`❌ No permissions for resource: ${resource} in role: ${user.role}`);
     return false;
   }
 
