@@ -1,5 +1,6 @@
-// api/invoices-enhanced.js - Erweiterte Rechnungs-API
+// api/invoices-enhanced.js - Erweiterte Rechnungs-API mit Auth
 import { kv } from '@vercel/kv';
+import { authenticateUser, hasPermission, logSecurityEvent } from './middleware/authMiddleware.js';
 
 const INVOICES_KEY = 'e-invoices';
 const CUSTOMERS_KEY = 'e-customers';
@@ -14,21 +15,60 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // 🔒 AUTHENTIFIZIERUNG PRÜFEN
+  const authResult = await authenticateUser(req);
+  if (!authResult.success) {
+    logSecurityEvent('UNAUTHORIZED_ACCESS', null, {
+      ip: req.headers['x-forwarded-for'] || 'unknown',
+      resource: 'invoices-enhanced',
+      action: req.method,
+      success: false
+    });
+
+    return res.status(authResult.status || 401).json({
+      success: false,
+      error: authResult.error
+    });
+  }
+
+  const { user } = authResult;
+
   try {
     // GET - Alle Rechnungen laden
     if (req.method === 'GET') {
+      // 🔒 BERECHTIGUNG PRÜFEN
+      if (!hasPermission(user, 'invoices', 'read')) {
+        return res.status(403).json({
+          success: false,
+          error: 'Keine Berechtigung zum Lesen von Rechnungen'
+        });
+      }
+
       const invoices = await kv.get(INVOICES_KEY) || [];
+      
+      // Support kann alle Rechnungen sehen, normale User nur ihre eigenen
+      const filteredInvoices = user.isSupport || user.companyId === 'all' 
+        ? invoices
+        : invoices.filter(invoice => invoice.companyId === user.companyId);
       
       return res.status(200).json({
         success: true,
-        data: invoices,
-        count: invoices.length,
+        data: filteredInvoices,
+        count: filteredInvoices.length,
         source: 'database'
       });
     }
     
     // POST - Neue Rechnung erstellen mit Kundendaten
     if (req.method === 'POST') {
+      // 🔒 BERECHTIGUNG PRÜFEN
+      if (!hasPermission(user, 'invoices', 'write')) {
+        return res.status(403).json({
+          success: false,
+          error: 'Keine Berechtigung zum Erstellen von Rechnungen'
+        });
+      }
+
       const { customerId, items, format = 'XRechnung', notes, dueDate } = req.body;
       
       if (!customerId || !items || !Array.isArray(items) || items.length === 0) {
@@ -38,7 +78,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // Kundendaten laden
+      // Kundendaten laden und Berechtigung prüfen
       const customers = await kv.get(CUSTOMERS_KEY) || [];
       const customer = customers.find(c => c.id === customerId);
       
@@ -49,8 +89,27 @@ export default async function handler(req, res) {
         });
       }
 
-      // Konfiguration laden
-      const config = await kv.get(CONFIG_KEY) || {};
+      // 🔒 ZUGRIFF AUF KUNDEN PRÜFEN
+      if (!user.isSupport && user.companyId !== 'all' && customer.companyId !== user.companyId) {
+        logSecurityEvent('UNAUTHORIZED_ACCESS', user, {
+          resource: 'invoices',
+          action: 'create_for_customer',
+          success: false,
+          customerId
+        });
+
+        return res.status(403).json({
+          success: false,
+          error: 'Keine Berechtigung für diesen Kunden'
+        });
+      }
+
+      // Konfiguration laden (firmen-spezifisch)
+      const configKey = user.companyId === 'all' || user.isSupport 
+        ? CONFIG_KEY 
+        : `${CONFIG_KEY}-${user.companyId}`;
+      const config = await kv.get(configKey) || {};
+      
       const taxRate = config.invoice?.taxRate || 19;
       const currency = config.invoice?.currency || 'EUR';
 
@@ -84,11 +143,12 @@ export default async function handler(req, res) {
         date: new Date().toISOString().split('T')[0],
         dueDate: dueDate || new Date(Date.now() + (config.invoice?.paymentTerms || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'draft',
+        companyId: user.companyId || 'default', // 🔒 Firma zuordnen
+        createdBy: user.id, // 🔒 Ersteller tracken
         receivedAt: new Date().toISOString(),
         processedAt: null,
         sentAt: null,
-        paidAt: null,
-        createdBy: 'API'
+        paidAt: null
       };
       
       const updatedInvoices = [newInvoice, ...currentInvoices];
@@ -101,6 +161,15 @@ export default async function handler(req, res) {
         customers[customerIndex].lastInvoice = new Date().toISOString();
         await kv.set(CUSTOMERS_KEY, customers);
       }
+
+      logSecurityEvent('INVOICE_CREATED', user, {
+        resource: 'invoices',
+        action: 'create',
+        success: true,
+        invoiceId: newInvoice.id,
+        customerId,
+        amount: total
+      });
       
       return res.status(201).json({
         success: true,
@@ -109,11 +178,17 @@ export default async function handler(req, res) {
       });
     }
 
-    // PUT - Rechnung aktualisieren (Status, etc.)
-    if (req.method === 'PUT') {
+    // DELETE - Rechnung löschen
+    if (req.method === 'DELETE') {
+      // 🔒 BERECHTIGUNG PRÜFEN
+      if (!hasPermission(user, 'invoices', 'write')) {
+        return res.status(403).json({
+          success: false,
+          error: 'Keine Berechtigung zum Löschen von Rechnungen'
+        });
+      }
+
       const { id } = req.query;
-      const updates = req.body;
-      
       const currentInvoices = await kv.get(INVOICES_KEY) || [];
       const index = currentInvoices.findIndex(inv => inv.id === id);
       
@@ -123,40 +198,30 @@ export default async function handler(req, res) {
           error: 'Rechnung nicht gefunden'
         });
       }
-      
-      currentInvoices[index] = {
-        ...currentInvoices[index],
-        ...updates,
-        updatedAt: new Date().toISOString()
-      };
-      
-      await kv.set(INVOICES_KEY, currentInvoices);
-      
-      return res.status(200).json({
-        success: true,
-        data: currentInvoices[index]
-      });
-    }
 
-    // DELETE - Rechnung löschen
-    if (req.method === 'DELETE') {
-      const { id } = req.query;
-      const currentInvoices = await kv.get(INVOICES_KEY) || [];
-      const index = currentInvoices.findIndex(inv => inv.id === id);
-      
-      if (index === -1) {
-        return res.status(404).json({
+      // 🔒 ZUGRIFF AUF RECHNUNG PRÜFEN
+      const invoice = currentInvoices[index];
+      if (!user.isSupport && user.companyId !== 'all' && invoice.companyId !== user.companyId) {
+        return res.status(403).json({
           success: false,
-          error: 'Rechnung nicht gefunden'
+          error: 'Keine Berechtigung für diese Rechnung'
         });
       }
       
       const deleted = currentInvoices.splice(index, 1)[0];
       await kv.set(INVOICES_KEY, currentInvoices);
+
+      logSecurityEvent('DATA_DELETE', user, {
+        resource: 'invoices',
+        action: 'delete',
+        success: true,
+        recordId: id
+      });
       
       return res.status(200).json({
         success: true,
-        data: deleted
+        data: deleted,
+        message: 'Rechnung aus Datenbank gelöscht'
       });
     }
     
@@ -166,7 +231,15 @@ export default async function handler(req, res) {
     });
     
   } catch (error) {
-    console.error('Enhanced Invoice API error:', error);
+    console.error('❌ Invoice Enhanced API error:', error);
+
+    logSecurityEvent('API_ERROR', user, {
+      resource: 'invoices-enhanced',
+      action: req.method,
+      success: false,
+      error: error.message
+    });
+
     return res.status(500).json({
       success: false,
       error: 'Datenbankfehler: ' + error.message
@@ -175,7 +248,7 @@ export default async function handler(req, res) {
 }
 
 // Rechnungsnummer generieren
-function generateInvoiceNumber(prefix) {
+function generateInvoiceNumber(prefix = 'INV-') {
   const year = new Date().getFullYear();
   const timestamp = Date.now().toString().slice(-6);
   return `${prefix}${year}-${timestamp}`;

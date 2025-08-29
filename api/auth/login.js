@@ -19,32 +19,36 @@ export default async function handler(req, res) {
       });
     }
 
-    // Support-Benutzer Check (Hersteller-Backdoor)
-    if (email === process.env.SUPPORT_EMAIL && password === process.env.SUPPORT_PASSWORD) {
-      const supportToken = jwt.sign(
-        { 
-          userId: 'support',
-          email: process.env.SUPPORT_EMAIL,
-          role: 'support',
-          companyId: req.body.companyId || 'all' // Kann alle Firmen einsehen
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
+// Support-Benutzer Check (super@user.com mit Admin-Rechten) 
+if (email === process.env.SUPPORT_EMAIL && password === process.env.SUPPORT_PASSWORD) {
+  const supportToken = jwt.sign(
+    { 
+      userId: 'support-admin',
+      email: process.env.SUPPORT_EMAIL,
+      role: 'admin', // ⬅️ Das ist die wichtige Änderung
+      permissions: ['*'], // ⬅️ Und das hier
+      companyId: 'all',
+      isSupport: true
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
 
-      return res.status(200).json({
-        success: true,
-        data: {
-          token: supportToken,
-          user: {
-            id: 'support',
-            email: process.env.SUPPORT_EMAIL,
-            name: 'Support User',
-            role: 'support'
-          }
-        }
-      });
+  return res.status(200).json({
+    success: true,
+    data: {
+      token: supportToken,
+      user: {
+        id: 'support-admin',
+        email: process.env.SUPPORT_EMAIL,
+        name: 'Support Administrator', 
+        role: 'admin', // ⬅️ Auch hier
+        permissions: ['*'],
+        isSupport: true
+      }
     }
+  });
+}
 
     // Standard-Benutzer authentifizierung
     const users = await kv.get('e-users') || [];

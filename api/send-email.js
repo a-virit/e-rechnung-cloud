@@ -1,5 +1,7 @@
 // api/send-email.js - Überarbeitet für externe Mailprovider
 import { kv } from '@vercel/kv';
+import { authenticateUser, hasPermission, logSecurityEvent } from './middleware/authMiddleware.js';
+
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -13,6 +15,35 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  // 🔒 AUTHENTIFIZIERUNG PRÜFEN
+const authResult = await authenticateUser(req);
+if (!authResult.success) {
+  return res.status(authResult.status || 401).json({
+    success: false,
+    error: authResult.error
+  });
+}
+
+const { user } = authResult;
+
+// 🔒 BERECHTIGUNG PRÜFEN
+if (!hasPermission(user, 'invoices', 'write')) {
+  return res.status(403).json({
+    success: false,
+    error: 'Keine Berechtigung zum E-Mail-Versand'
+  });
+}
+
+// 🔒 RATE LIMITING
+const rateLimitKey = `email_rate_${user.companyId || user.id}`;
+const emailsToday = await kv.get(rateLimitKey) || 0;
+if (emailsToday >= (user.isSupport ? 1000 : 100)) {
+  return res.status(429).json({
+    success: false,
+    error: 'Tägliches E-Mail-Limit erreicht'
+  });
+}
 
   try {
     const { invoiceId, attachXML = true, attachPDF = false } = req.body;
@@ -368,3 +399,6 @@ async function updateInvoiceStatus(invoiceId, updates) {
     console.error('Status update error:', error);
   }
 }
+
+// AM ENDE: Rate counter erhöhen
+await kv.set(rateLimitKey, emailsToday + 1, { ex: 86400 });
