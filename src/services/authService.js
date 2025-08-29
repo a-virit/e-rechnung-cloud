@@ -2,43 +2,8 @@
 class AuthService {
   constructor() {
     this.baseURL = process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : '';
-    this.tokenKey = 'e-rechnungs-token';
-    this.userKey = 'e-rechnungs-user';
-  }
-
-  // Login
-  async login(credentials) {
-    try {
-      const response = await fetch(`${this.baseURL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login fehlgeschlagen');
-      }
-
-      // Token und Benutzer speichern
-      localStorage.setItem(this.tokenKey, data.token);
-      localStorage.setItem(this.userKey, JSON.stringify(data.user));
-
-      return data;
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  }
-
-  // Logout
-  logout() {
-    localStorage.removeItem(this.tokenKey);
-    localStorage.removeItem(this.userKey);
-    window.location.href = '/login';
+    this.tokenKey = 'token'; // Gleich wie in AuthContext
+    this.userKey = 'user';   // Gleich wie in AuthContext
   }
 
   // Token abrufen
@@ -58,6 +23,13 @@ class AuthService {
     }
   }
 
+  // Logout (redirect zur Login-Seite)
+  logout() {
+    localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem(this.userKey);
+    window.location.href = '/login';
+  }
+
   // Prüfen ob eingeloggt
   isAuthenticated() {
     const token = this.getToken();
@@ -65,7 +37,7 @@ class AuthService {
     
     if (!token || !user) return false;
 
-    // Einfache Token-Validierung (später mit JWT-Decode erweitern)
+    // Einfache Token-Validierung
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const now = Date.now() / 1000;
@@ -81,14 +53,14 @@ class AuthService {
     const user = this.getCurrentUser();
     if (!user) return false;
 
-    // Admin hat alle Berechtigungen
-    if (user.role === 'admin') return true;
+    // Admin und Support haben alle Berechtigungen
+    if (user.role === 'admin' || user.isSupport) return true;
 
-    // Spezifische Berechtigungen je nach Rolle
+    // Standard-Berechtigungen je nach Rolle
     const permissions = {
-      admin: ['*'], // Alle Berechtigungen
-      user: ['invoices:read', 'invoices:write', 'customers:read', 'customers:write'],
-      support: ['invoices:read', 'customers:read', 'config:read'],
+      admin: ['*'], 
+      user: ['customers:read', 'customers:write', 'invoices:read', 'invoices:write', 'config:read'],
+      support_readonly: ['customers:read', 'invoices:read', 'config:read'],
       guest: ['invoices:read']
     };
 
