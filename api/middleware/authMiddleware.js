@@ -98,8 +98,9 @@ export function hasPermission(user, resource, action) {
     return false;
   }
 
-  // Support und Admin haben alle Rechte
-  if (user.role === 'admin' || user.isSupport) {
+   // 🔧 KORRIGIERT: Support und Admin haben alle Rechte
+  if (user.role === 'admin' || user.role === 'support' || user.isSupport === true) {
+    console.log(`✅ Admin/Support access granted for ${user.email} (${user.role}, isSupport: ${user.isSupport})`);
     return true;
   }
 
@@ -115,6 +116,12 @@ export function hasPermission(user, resource, action) {
       customers: ['read'],
       invoices: ['read'],
       config: ['read'],
+      dashboard: ['read']
+    },
+    admin: { // 🔧 HINZUGEFÜGT: Explizite Admin-Berechtigungen
+      customers: ['read', 'write'],
+      invoices: ['read', 'write'],
+      config: ['read', 'write'], // Admin kann Config ändern
       dashboard: ['read']
     }
   };
