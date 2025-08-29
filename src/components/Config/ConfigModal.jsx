@@ -23,7 +23,7 @@ const ConfigModal = () => {
   const [testEmailMessage, setTestEmailMessage] = useState('');
 
   // Config Data laden
-  useEffect(() => {
+  useEffect(() => { //
     setConfigData({
       company: config.company || {},
       email: config.email || {},
@@ -34,7 +34,7 @@ const ConfigModal = () => {
 
   // Modal schließen
   const handleClose = () => {
-    actions.closeModal('config');
+    actions.closeModal('config'); //
     setActiveSection('company');
     setTestEmailStatus(null);
     setTestEmailMessage('');
@@ -48,7 +48,7 @@ const ConfigModal = () => {
       return;
     }
 
-    setTestEmailStatus('sending');
+    setTestEmailStatus({status: 'sending'});
     setTestEmailMessage('Test-E-Mail wird versendet...');
 
     try {
@@ -214,15 +214,9 @@ const ConfigModal = () => {
 };
 
 // E-Mail Sektion mit Test-Funktion
-const EmailSection = ({ 
-  data, 
-  templates, 
-  onChange, 
-  onTemplateChange, 
-  onTestEmail, 
-  testEmailStatus, 
-  testEmailMessage 
-}) => (
+// VOLLSTÄNDIGE EmailSection mit Test-E-Mail-Button:
+
+const EmailSection = ({ data, templates, onChange, onTemplateChange, onTestEmail, testEmailStatus, testEmailMessage }) => (
   <div className="space-y-4">
     <h3 className="text-lg font-semibold flex items-center">
       <Mail className="w-5 h-5 mr-2" />
@@ -238,7 +232,7 @@ const EmailSection = ({
     </div>
     
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Mailprovider-Auswahl */}
+      {/* KORRIGIERT: Neue Provider-Auswahl */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail-Service</label>
         <select
@@ -253,17 +247,15 @@ const EmailSection = ({
         <p className="text-xs text-gray-500 mt-1">Professioneller E-Mail-Service</p>
       </div>
       
-      {/* Absender-E-Mail */}
+      {/* KORRIGIERT: Neue Felder für externe Provider */}
       <ConfigField
         label="Ihre Absender-E-Mail"
         type="email"
         value={data.senderEmail || ''}
         onChange={(value) => onChange({ senderEmail: value })}
         placeholder="rechnung@ihrefirma.de"
-        required
       />
       
-      {/* Absender-Name */}
       <ConfigField
         label="Absender-Name"
         value={data.senderName || ''}
@@ -271,7 +263,6 @@ const EmailSection = ({
         placeholder="Ihre Firma GmbH"
       />
       
-      {/* Reply-To E-Mail */}
       <ConfigField
         label="Antwort-E-Mail (optional)"
         type="email"
@@ -281,7 +272,7 @@ const EmailSection = ({
       />
     </div>
 
-    {/* Provider-spezifische Hinweise */}
+    {/* Provider-Info */}
     <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
       <h5 className="text-sm font-medium text-gray-700 mb-2">
         {data.provider === 'sendgrid' && '📧 SendGrid - Zuverlässig & Schnell'}
@@ -295,23 +286,23 @@ const EmailSection = ({
       </p>
     </div>
 
-    {/* Test-E-Mail Bereich */}
+    {/* TEST-E-MAIL BEREICH - HINZUGEFÜGT */}
     <div className="border-t pt-4 mt-6">
       <div className="flex items-center justify-between mb-3">
         <h4 className="font-medium">E-Mail-Test</h4>
         <button
           type="button"
           onClick={onTestEmail}
-          disabled={!data.senderEmail || testEmailStatus === 'sending'}
+          disabled={!data.senderEmail || testEmailStatus?.status === 'sending'}
           className={`px-4 py-2 rounded text-sm font-medium transition-colors flex items-center ${
-            !data.senderEmail || testEmailStatus === 'sending'
+            !data.senderEmail || testEmailStatus?.status === 'sending'
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-green-600 text-white hover:bg-green-700'
           }`}
         >
-          {testEmailStatus === 'sending' ? (
+          {testEmailStatus?.status === 'sending' ? (
             <>
-              <Spinner />
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
               Sendet...
             </>
           ) : (
@@ -324,26 +315,28 @@ const EmailSection = ({
       </div>
       
       {/* Test-Status-Anzeige */}
-      {testEmailStatus && (
+      {testEmailStatus?.status && testEmailStatus.status !== 'idle' && (
         <div className={`p-3 rounded-md flex items-start ${
-          testEmailStatus === 'success' 
+          testEmailStatus.status === 'success' 
             ? 'bg-green-50 border border-green-200' 
-            : testEmailStatus === 'error'
+            : testEmailStatus.status === 'error'
             ? 'bg-red-50 border border-red-200'
             : 'bg-blue-50 border border-blue-200'
         }`}>
-          {testEmailStatus === 'success' && <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />}
-          {testEmailStatus === 'error' && <AlertCircle className="w-5 h-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />}
-          {testEmailStatus === 'sending' && <Spinner />}
+          {testEmailStatus.status === 'success' && <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />}
+          {testEmailStatus.status === 'error' && <AlertCircle className="w-5 h-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />}
+          {testEmailStatus.status === 'sending' && (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2 mt-0.5"></div>
+          )}
           
           <p className={`text-sm ${
-            testEmailStatus === 'success' 
+            testEmailStatus.status === 'success' 
               ? 'text-green-700' 
-              : testEmailStatus === 'error'
+              : testEmailStatus.status === 'error'
               ? 'text-red-700'
               : 'text-blue-700'
           }`}>
-            {testEmailMessage}
+            {testEmailStatus.message || testEmailMessage}
           </p>
         </div>
       )}
@@ -396,6 +389,9 @@ const EmailSection = ({
     </div>
   </div>
 );
+
+// WICHTIG: Diese Imports müssen am Anfang der ConfigModal.jsx stehen:
+// import { Send, CheckCircle, AlertCircle } from 'lucide-react';
 
 // Tab Button Komponente
 const TabButton = ({ id, label, icon: Icon, activeSection, setActiveSection }) => (

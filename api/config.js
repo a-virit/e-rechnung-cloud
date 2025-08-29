@@ -14,7 +14,7 @@ const DEFAULT_CONFIG = {
     logo: ''
   },
   email: {
-    provider: 'gmail',
+    provider: 'sendgrid',
     host: '',
     port: 587,
     secure: false,
