@@ -34,18 +34,12 @@ const AuthenticatedApp = () => {
         return <Dashboard />;
         
       case 'invoices':
-        return (
-          <ProtectedRoute requirePermission={{ resource: 'invoices', action: 'create' }}>
-            <InvoiceList />
-          </ProtectedRoute>
-        );
+        // 🔧 KORRIGIERT: Nur Leseberechtigung erforderlich für die Liste
+        return <InvoiceList />;
         
       case 'customers':
-        return (
-          <ProtectedRoute requirePermission={{ resource: 'customers', action: 'create' }}>
-            <CustomerManagement />
-          </ProtectedRoute>
-        );
+        // 🔧 KORRIGIERT: Nur Leseberechtigung erforderlich für die Liste  
+        return <CustomerManagement />;
         
       case 'users':
         return (
@@ -68,18 +62,10 @@ const AuthenticatedApp = () => {
         {renderContent()}
       </div>
 
-      {/* Modals - Mit Permission-Schutz */}
-      <ProtectedRoute requirePermission={{ resource: 'customers', action: 'create' }}>
-        <CustomerModal />
-      </ProtectedRoute>
-      
-      <ProtectedRoute requireRole="admin">
-        <ConfigModal />
-      </ProtectedRoute>
-      
-      <ProtectedRoute requirePermission={{ resource: 'invoices', action: 'create' }}>
-        <InvoiceModal />
-      </ProtectedRoute>
+      {/* 🔧 KORRIGIERT: Modals brauchen keine extra Protection - wird in den Komponenten selbst geprüft */}
+      <CustomerModal />
+      <ConfigModal />
+      <InvoiceModal />
     </div>
   );
 };
