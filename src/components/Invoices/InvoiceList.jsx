@@ -143,7 +143,7 @@ const InvoiceRow = ({ invoice, submitting, onSendEmail, onDownloadPDF, onDelete 
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
         <span className="font-medium">
-          {invoice.total ? invoice.total.toFixed(2) : invoice.amount.toFixed(2)} {invoice.currency}
+        {(invoice.total || invoice.amount || 0).toFixed(2)} {invoice.currency || 'EUR'}
         </span>
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
