@@ -81,21 +81,28 @@ const CustomerModal = () => {
 
     setIsSubmitting(true);
     
-    try {
-      await actions.saveCustomer(formData, isEditing);
+try {
+    const result = await actions.saveCustomer(formData, isEditing);
+    
+    // Nur bei erfolgreichem Speichern weitermachen
+    if (result && result.success !== false) {
       handleClose();
       
-      // Erfolgreiche Benachrichtigung
       const message = isEditing ? 'Kunde erfolgreich aktualisiert!' : 'Kunde erfolgreich erstellt!';
       console.log(message);
-      
-    } catch (error) {
-      console.log('Fehler beim Speichern: ' + error.message);
-      console.error('Customer save error:', error);
-    } finally {
-      setIsSubmitting(false);
+
+    } else {
+      // API-Fehler behandeln
+      const errorMessage = result?.error || 'Unbekannter Fehler beim Speichern';
+      console.error('API Fehler:', errorMessage);
     }
-  };
+    
+  } catch (error) {
+    console.error('Netzwerk-Fehler:', error.message);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // Input Change Handler
   const handleInputChange = (field, value) => {

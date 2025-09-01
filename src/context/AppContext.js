@@ -363,6 +363,7 @@ export function AppProvider({ children }) {
         if (isEdit) {
           await customerService.update(customerData.id, customerData);
         } else {
+          console.log('Creating following: ', customerData); // logging
           await customerService.create(customerData);
         }
         await loadCustomers();
