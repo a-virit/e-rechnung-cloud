@@ -129,7 +129,9 @@ const CustomerManagement = () => {
         
         <div className="overflow-x-auto">
           {filteredAndSortedCustomers.length === 0 ? (
-            <EmptyState searchTerm={searchTerm} />
+            <EmptyState
+            searchTerm={searchTerm}
+            actions={actions} />
           ) : (
             <CustomerTable 
               customers={filteredAndSortedCustomers}
@@ -414,7 +416,7 @@ const CustomerRow = ({ customer, onEdit, onDelete, canWrite, canDelete }) => (
 );
 
 // Empty State
-const EmptyState = ({ searchTerm }) => (
+const EmptyState = ({ searchTerm, actions }) => (
   <div className="text-center py-12">
     <Users className="mx-auto h-12 w-12 text-gray-400" />
     <h3 className="mt-2 text-sm font-medium text-gray-900">

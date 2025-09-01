@@ -985,7 +985,7 @@ const ProfileSystemSettings = () => {
                   checked={notifications[key]}
                   onChange={(e) => {
                     if (critical && !e.target.checked) {
-                      if (!confirm('Sicherheitswarnungen deaktivieren? Dies wird nicht empfohlen!')) {
+                      if (!window.confirm('Sicherheitswarnungen deaktivieren? Dies wird nicht empfohlen!')) {
                         return;
                       }
                     }
@@ -1138,7 +1138,7 @@ const ProfileSystemSettings = () => {
           
           <button
             onClick={() => {
-              if (confirm('Möchten Sie wirklich alle Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden!')) {
+              if (window.confirm('Möchten Sie wirklich alle Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden!')) {
                 logSecurityEvent('DATA_DELETION_REQUESTED', { userId: user.id });
                 alert('Datenlöschung wird vom Administrator geprüft');
               }
