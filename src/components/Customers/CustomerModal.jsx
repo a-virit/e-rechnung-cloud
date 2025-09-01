@@ -87,10 +87,10 @@ const CustomerModal = () => {
       
       // Erfolgreiche Benachrichtigung
       const message = isEditing ? 'Kunde erfolgreich aktualisiert!' : 'Kunde erfolgreich erstellt!';
-      alert(message);
+      console.log(message);
       
     } catch (error) {
-      alert('Fehler beim Speichern: ' + error.message);
+      console.log('Fehler beim Speichern: ' + error.message);
       console.error('Customer save error:', error);
     } finally {
       setIsSubmitting(false);

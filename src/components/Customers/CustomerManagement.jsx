@@ -57,16 +57,16 @@ const CustomerManagement = () => {
   // Kunde löschen (mit Berechtigung)
   const handleDeleteCustomer = async (customer) => {
     if (!canDelete) {
-      alert('Keine Berechtigung zum Löschen von Kunden');
+      console.log('Keine Berechtigung zum Löschen von Kunden');
       return;
     }
 
     if (window.confirm(`Kunde "${customer.name}" wirklich löschen?`)) {
       try {
         await actions.deleteCustomer(customer.id);
-        alert('Kunde erfolgreich gelöscht!');
+        console.log('Kunde erfolgreich gelöscht!');
       } catch (error) {
-        alert('Fehler beim Löschen: ' + error.message);
+        console.log('Fehler beim Löschen: ' + error.message);
       }
     }
   };
@@ -74,7 +74,7 @@ const CustomerManagement = () => {
   // Kunde bearbeiten (mit Berechtigung)
   const handleEditCustomer = (customer) => {
     if (!canWrite) {
-      alert('Keine Berechtigung zum Bearbeiten von Kunden');
+      console.log('Keine Berechtigung zum Bearbeiten von Kunden');
       return;
     }
     actions.editCustomer(customer);
@@ -83,7 +83,7 @@ const CustomerManagement = () => {
   // Neuer Kunde (mit Berechtigung)
   const handleAddCustomer = () => {
     if (!canWrite) {
-      alert('Keine Berechtigung zum Erstellen von Kunden');
+      console.log('Keine Berechtigung zum Erstellen von Kunden');
       return;
     }
     actions.openModal('customer');
