@@ -57,7 +57,7 @@ class CustomerService {
 
   async create(customerData) {
     try {
-      const response = await fetch(`${this.baseURL}/api/customers-debug`, {
+      const response = await fetch(`${this.baseURL}/api/customers`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify(customerData)
