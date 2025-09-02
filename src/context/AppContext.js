@@ -1,9 +1,7 @@
 // src/context/AppContext.js
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { invoiceService, customerService, configService } from '../services';
-import { calculateInvoiceStats } from '../utils/statusHelpers';
 import { invoiceService, customerService, configService, businessPartnerService } from '../services';
-
+import { calculateInvoiceStats } from '../utils/statusHelpers';
 
 // Context erstellen
 const AppContext = createContext();
