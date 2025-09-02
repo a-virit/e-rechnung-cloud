@@ -13,6 +13,7 @@ import CustomerModal from './components/Customers/CustomerModal';
 import ConfigModal from './components/Config/ConfigModal';
 import InvoiceModal from './components/Invoices/InvoiceModal';
 import ProfileSystemSettings from './components/Settings/ProfileSystemSettings';
+import BusinessPartnerModal from './components/BusinessPartners/BusinessPartnerModal';
 
 
 const App = () => {
@@ -42,6 +43,9 @@ const AuthenticatedApp = () => {
       case 'customers':
         // 🔧 KORRIGIERT: Nur Leseberechtigung erforderlich für die Liste  
         return <CustomerManagement />;
+
+      case 'business-partners':  // NEU
+        return <div className="text-center p-8">Business Partner Management - Coming Soon</div>;
         
       case 'users':
         return (
@@ -70,6 +74,7 @@ const AuthenticatedApp = () => {
       <CustomerModal />
       <ConfigModal />
       <InvoiceModal />
+      <BusinessPartnerModal />
     </div>
   );
 };

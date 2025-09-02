@@ -30,10 +30,17 @@ const Navigation = ({ activeTab, setActiveTab }) => {
       description: 'Kundendaten verwalten'
     },
     {
-    id: 'settings',
-    label: 'Einstellungen', 
-    icon: Settings,
-    description: 'Profile und Systemkonfiguration'
+      id: 'business-partners',
+      label: 'Business Partner', 
+      icon: Users, // oder ein anderes Icon
+      count: state.businessPartners?.length || 0,
+      description: 'Business Partner verwalten'
+    },
+    {
+      id: 'settings',
+      label: 'Einstellungen', 
+      icon: Settings,
+      description: 'Profile und Systemkonfiguration'
     }
   ];
 

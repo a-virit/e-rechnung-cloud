@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { invoiceService, customerService, configService } from '../services';
 import { calculateInvoiceStats } from '../utils/statusHelpers';
+import { invoiceService, customerService, configService, businessPartnerService } from '../services';
+
 
 // Context erstellen
 const AppContext = createContext();
@@ -11,6 +13,7 @@ const initialState = {
   // Daten
   invoices: [],
   customers: [],
+  businessPartners: [],
   config: {
     company: {},
     email: {},
@@ -34,7 +37,8 @@ const initialState = {
   modals: {
     customer: false,
     config: false,
-    invoice: false
+    invoice: false,
+    businessPartner: false  // NEU
   },
   
   // Edit States
@@ -79,12 +83,21 @@ const ActionTypes = {
   SET_EDITING_INVOICE: 'SET_EDITING_INVOICE',
   
   // Batch Actions
-  RESET_STATE: 'RESET_STATE'
+  RESET_STATE: 'RESET_STATE',
+
+  // NEU: Business Partner Actions
+  SET_BUSINESS_PARTNERS: 'SET_BUSINESS_PARTNERS'
 };
 
 // Reducer Function
 function appReducer(state, action) {
   switch (action.type) {
+
+    case ActionTypes.SET_BUSINESS_PARTNERS:
+      return { 
+        ...state, 
+        businessPartners: action.payload 
+      };
     
     // NEU: Test-E-Mail Reducer Cases
     case ActionTypes.SET_TEST_EMAIL_STATUS:
@@ -232,6 +245,21 @@ export function AppProvider({ children }) {
     }
   };
 
+  const loadBusinessPartners = async () => {
+  try {
+    dispatch({ type: ActionTypes.SET_LOADING, payload: true });
+    const businessPartners = await businessPartnerService.getAll();
+    dispatch({ 
+      type: ActionTypes.SET_BUSINESS_PARTNERS, 
+      payload: businessPartners 
+    });
+  } catch (error) {
+    handleError(error, 'Business Partner laden');
+  } finally {
+    dispatch({ type: ActionTypes.SET_LOADING, payload: false });
+  }
+};
+
   const loadConfig = async () => {
     try {
       const config = await configService.get();
@@ -245,6 +273,35 @@ export function AppProvider({ children }) {
 
   // Actions Object
   const actions = {
+
+      // === BUSINESS PARTNER ACTIONS ===
+  loadBusinessPartners,
+  
+  refreshBusinessPartners: async () => {
+    dispatch({ type: ActionTypes.SET_LOADING, payload: true });
+    await loadBusinessPartners();
+    dispatch({ type: ActionTypes.SET_LOADING, payload: false });
+  },
+  
+  saveBusinessPartner: async (partnerData, isEdit = false) => {
+    dispatch({ type: ActionTypes.SET_SUBMITTING, payload: true });
+    try {
+      if (isEdit) {
+        // TODO: Update implementieren später
+        // await businessPartnerService.update(partnerData.businessPartnerNumber, partnerData);
+      } else {
+        await businessPartnerService.create(partnerData);
+      }
+      await loadBusinessPartners();
+      const message = isEdit ? 'Business Partner erfolgreich aktualisiert!' : 'Business Partner erfolgreich erstellt!';
+      return { success: true, message };
+    } catch (error) {
+      handleError(error, isEdit ? 'Business Partner aktualisieren' : 'Business Partner erstellen');
+      return { success: false, error: error.message };
+    } finally {
+      dispatch({ type: ActionTypes.SET_SUBMITTING, payload: false });
+    }
+  },
 
     // NEU: Test-E-Mail-Funktionen
   sendTestEmail: async (emailConfig, companyConfig) => {
@@ -448,6 +505,7 @@ export function AppProvider({ children }) {
         await Promise.all([
           loadInvoices(),
           loadCustomers(),
+          loadBusinessPartners(),
           loadConfig()
         ]);
       } catch (error) {
