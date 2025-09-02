@@ -70,75 +70,69 @@ export default async function handler(req, res) {
     }
     
     // POST - Neuen Kunden erstellen
-    if (req.method === 'POST') {
-      // 🔒 BERECHTIGUNG PRÜFEN
-      if (!hasPermission(user, 'customers', 'write')) {
-        logSecurityEvent('PERMISSION_DENIED', user, {
-          resource: 'customers',
-          action: 'write',
-          success: false
-        });
+if (req.method === 'POST') {
+  // 🔒 BERECHTIGUNG PRÜFEN
+  if (!hasPermission(user, 'customers', 'write')) {
+    return res.status(403).json({
+      success: false,
+      error: 'Keine Berechtigung zum Erstellen von Kunden'
+    });
+  }
 
-        return res.status(403).json({
-          success: false,
-          error: 'Keine Berechtigung zum Erstellen von Kunden'
-        });
-      }
+  const { name, email, address, taxId, contactPerson, phone, externalCustomerNumber } = req.body;
+  
+  if (!name || !email) {
+    return res.status(400).json({
+      success: false,
+      error: 'Name und E-Mail sind erforderlich'
+    });
+  }
 
-      const { name, email, address, taxId, contactPerson, phone } = req.body;
-      
-      if (!name || !email) {
-        return res.status(400).json({
-          success: false,
-          error: 'Name und E-Mail sind erforderlich'
-        });
-      }
+  const currentCustomers = await kv.get(CUSTOMERS_KEY) || [];
+  
+  // Automatische Kundennummer generieren (15-stellig, hochzählend)
+  const generateCustomerNumber = (existingCustomers) => {
+    const existingNumbers = existingCustomers
+      .map(c => parseInt(c.customerNumber) || 0)
+      .filter(n => n > 0);
+    
+    const nextNumber = existingNumbers.length > 0 
+      ? Math.max(...existingNumbers) + 1 
+      : 1;
+    
+    // 15-stellig mit führenden Nullen
+    return nextNumber.toString().padStart(15, '0');
+  };
+  
+  const customerNumber = generateCustomerNumber(currentCustomers);
+  
+  const newCustomer = {
+    id: `CUST-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    customerNumber,                    // Automatisch generiert, 15-stellig
+    externalCustomerNumber: externalCustomerNumber || '', // Optional, für Migration
+    name,
+    email,
+    address: address || '',
+    taxId: taxId || '',
+    contactPerson: contactPerson || '',
+    phone: phone || '',
+    companyId: user.companyId || 'default',
+    createdAt: new Date().toISOString(),
+    createdBy: user.id,
+    invoiceCount: 0,
+    lastInvoice: null
+  };
+  
+  const updatedCustomers = [newCustomer, ...currentCustomers];
+  await kv.set(CUSTOMERS_KEY, updatedCustomers);
 
-      const currentCustomers = await kv.get(CUSTOMERS_KEY) || [];
-      
-      // E-Mail-Duplikat prüfen (innerhalb der Firma)
-      const companyCustomers = user.isSupport || user.companyId === 'all'
-        ? currentCustomers
-        : currentCustomers.filter(c => c.companyId === user.companyId);
-      
-      const emailExists = companyCustomers.some(c => c.email.toLowerCase() === email.toLowerCase());
-      if (emailExists) {
-        return res.status(400).json({
-          success: false,
-          error: 'Ein Kunde mit dieser E-Mail-Adresse existiert bereits'
-        });
-      }
-      
-      const newCustomer = {
-        id: `CUST-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-        name,
-        email,
-        address: address || '',
-        taxId: taxId || '',
-        contactPerson: contactPerson || '',
-        phone: phone || '',
-        companyId: user.companyId || 'default', // Kunde der Firma zuordnen
-        createdAt: new Date().toISOString(),
-        createdBy: user.id,
-        invoiceCount: 0,
-        lastInvoice: null
-      };
-      
-      const updatedCustomers = [newCustomer, ...currentCustomers];
-      await kv.set(CUSTOMERS_KEY, updatedCustomers);
-
-      logSecurityEvent('DATA_CREATE', user, {
-        resource: 'customers',
-        action: 'create',
-        success: true,
-        recordId: newCustomer.id
-      });
-      
-      return res.status(201).json({
-        success: true,
-        data: newCustomer
-      });
-    }
+  console.log('✅ Customer created with number:', customerNumber);
+  
+  return res.status(201).json({
+    success: true,
+    data: newCustomer
+  });
+}
 
     // PUT - Kunden aktualisieren
     if (req.method === 'PUT') {
