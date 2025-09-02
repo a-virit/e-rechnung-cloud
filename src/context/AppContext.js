@@ -361,6 +361,7 @@ export function AppProvider({ children }) {
       dispatch({ type: ActionTypes.SET_SUBMITTING, payload: true });
       try {
         if (isEdit) {
+          console.log('Updating following: ', customerData); // logging
           await customerService.update(customerData.id, customerData);
         } else {
           console.log('Creating following: ', customerData); // logging
