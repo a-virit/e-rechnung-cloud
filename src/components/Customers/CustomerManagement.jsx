@@ -266,6 +266,9 @@ const CustomerTable = ({
   <table className="min-w-full divide-y divide-gray-200">
     <thead className="bg-gray-50">
       <tr>
+        <SortableHeader field="customerNumber" sortBy={sortBy} sortOrder={sortOrder} onSort={onSort}>
+          Kundennummer
+        </SortableHeader>
         <SortableHeader field="name" sortBy={sortBy} sortOrder={sortOrder} onSort={onSort}>
           Unternehmen
         </SortableHeader>
@@ -328,6 +331,18 @@ const SortableHeader = ({ field, sortBy, sortOrder, onSort, children }) => {
 // Kunden-Zeile (🔒 mit Berechtigungen)
 const CustomerRow = ({ customer, onEdit, onDelete, canWrite, canDelete }) => (
   <tr className="hover:bg-gray-50 transition-colors">
+    
+    <td className="px-6 py-4 whitespace-nowrap">
+      <div className="text-sm font-mono text-gray-900">
+        {customer.customerNumber || 'error n.a.'}
+      </div>
+        {customer.externalCustomerNumber && (
+      <div className="text-xs text-gray-500">
+        Extern: {customer.externalCustomerNumber}
+      </div>
+      )}
+    </td>
+    
     <td className="px-6 py-4 whitespace-nowrap">
       <div className="flex items-center">
         <div className="flex-shrink-0 h-8 w-8">
@@ -343,7 +358,7 @@ const CustomerRow = ({ customer, onEdit, onDelete, canWrite, canDelete }) => (
         </div>
       </div>
     </td>
-    
+
     <td className="px-6 py-4 whitespace-nowrap">
       <div className="flex items-center">
         <Mail className="h-4 w-4 text-gray-400 mr-2" />
