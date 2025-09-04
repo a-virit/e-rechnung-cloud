@@ -3,7 +3,7 @@ import React from 'react';
 import { Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
-const BusinessPartnerList = () => {
+const BusinessPartnerManagement = () => {
   const { state, actions } = useApp();
   const { businessPartners } = state;
 
