@@ -5,15 +5,6 @@ import { kv } from '@vercel/kv';
 const BUSINESS_PARTNERS_KEY = 'e-business-partners';
 const JWT_SECRET = process.env.JWT_SECRET;
 
-const PARTNER_ROLES = [
-  { code: 'CUSTOMER', label: 'Kunde' },
-  { code: 'SUPPLIER', label: 'Lieferant' },
-  { code: 'BILLING', label: 'Rechnungsempfänger' },
-  { code: 'DELIVERY', label: 'Lieferadresse' },
-  { code: 'PARTNER', label: 'Geschäftspartner' },
-  { code: 'CONTRACTOR', label: 'Auftragnehmer' }
-];
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
