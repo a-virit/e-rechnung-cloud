@@ -45,7 +45,7 @@ const AuthenticatedApp = () => {
         return <CustomerManagement />;
 
       case 'business-partners':  // NEU
-        return <div className="text-center p-8">Business Partner Management - Coming Soon</div>;
+        return <BusinessPartnerManagement />;
         
       case 'users':
         return (
