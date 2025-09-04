@@ -5,6 +5,15 @@ import { kv } from '@vercel/kv';
 const BUSINESS_PARTNERS_KEY = 'e-business-partners';
 const JWT_SECRET = process.env.JWT_SECRET;
 
+const PARTNER_ROLES = [
+  { code: 'CUSTOMER', label: 'Kunde' },
+  { code: 'SUPPLIER', label: 'Lieferant' },
+  { code: 'BILLING', label: 'Rechnungsempfänger' },
+  { code: 'DELIVERY', label: 'Lieferadresse' },
+  { code: 'PARTNER', label: 'Geschäftspartner' },
+  { code: 'CONTRACTOR', label: 'Auftragnehmer' }
+];
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -59,7 +68,7 @@ export default async function handler(req, res) {
 
     // POST - Neuen Business Partner erstellen
     if (req.method === 'POST') {
-      const { name, primaryEmail, primaryPhone, externalBusinessPartnerNumber } = req.body;
+      const { name, primaryEmail, primaryPhone, externalBusinessPartnerNumber, selectedRoles } = req.body;
       
       if (!name || !primaryEmail) {
         return res.status(400).json({
@@ -85,6 +94,33 @@ export default async function handler(req, res) {
       
       const businessPartnerNumber = generatePartnerNumber(currentPartners);
       
+      // Rollen basierend auf Auswahl erstellen
+const createRolesFromSelection = (selectedRoles, primaryEmail, primaryPhone) => {
+  const roleMap = {
+    'CUSTOMER': 'Kunde',
+    'SUPPLIER': 'Lieferant', 
+    'BILLING': 'Rechnungsempfänger',
+    'DELIVERY': 'Lieferadresse'
+  };
+
+    return selectedRoles.map(roleCode => ({
+    roleCode,
+    roleLabel: roleMap[roleCode] || roleCode,
+    status: 'ACTIVE',
+    address: {
+      street: '',
+      houseNumber: '',
+      addressLine2: '',
+      postalCode: '',
+      city: '',
+      country: 'Deutschland',
+      poBox: '',
+      email: primaryEmail, // Übernimmt primäre E-Mail als Standard
+      phone: primaryPhone || ''
+    }
+  }));
+};
+
       const newPartner = {
         businessPartnerNumber,
         externalBusinessPartnerNumber: externalBusinessPartnerNumber || '',
@@ -92,7 +128,9 @@ export default async function handler(req, res) {
         status: 'ACTIVE',
         primaryEmail,
         primaryPhone: primaryPhone || '',
-        roles: [], // Leer starten, später erweitern
+ // Rollen basierend auf Auswahl
+  roles: createRolesFromSelection(selectedRoles || ['CUSTOMER'], primaryEmail, primaryPhone),
+  
         contacts: [], // Leer starten, später erweitern
         companyId: 'default',
         createdAt: new Date().toISOString(),

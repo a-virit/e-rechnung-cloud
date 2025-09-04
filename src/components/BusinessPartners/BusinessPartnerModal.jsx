@@ -12,7 +12,8 @@ const BusinessPartnerModal = () => {
     name: '',
     primaryEmail: '',
     primaryPhone: '',
-    externalBusinessPartnerNumber: ''
+    externalBusinessPartnerNumber: '',
+    selectedRoles: ['CUSTOMER'] // Standard: Kunde-Rolle
   });
 
   const [errors, setErrors] = useState({});
@@ -33,6 +34,10 @@ const BusinessPartnerModal = () => {
   // Form Validierung
   const validateForm = () => {
     const newErrors = {};
+
+    if (!formData.selectedRoles || formData.selectedRoles.length === 0) {
+  newErrors.selectedRoles = 'Mindestens eine Partner-Rolle muss ausgewählt werden';
+}
 
     if (!formData.name.trim()) {
       newErrors.name = 'Business Partner Name ist erforderlich';
@@ -161,6 +166,38 @@ const BusinessPartnerModal = () => {
                 />
               </div>
             </div>
+
+            <div className="md:col-span-2">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Partner-Rollen
+  </label>
+  <div className="grid grid-cols-2 gap-2">
+    {[
+      { code: 'CUSTOMER', label: 'Kunde' },
+      { code: 'SUPPLIER', label: 'Lieferant' },
+      { code: 'BILLING', label: 'Rechnungsempfänger' },
+      { code: 'DELIVERY', label: 'Lieferadresse' }
+    ].map(role => (
+      <label key={role.code} className="flex items-center">
+        <input
+          type="checkbox"
+          checked={formData.selectedRoles.includes(role.code)}
+          onChange={(e) => {
+            const roles = e.target.checked 
+              ? [...formData.selectedRoles, role.code]
+              : formData.selectedRoles.filter(r => r !== role.code);
+            handleInputChange('selectedRoles', roles);
+          }}
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+        />
+        <span className="text-sm">{role.label}</span>
+      </label>
+    ))}
+  </div>
+  <p className="text-xs text-gray-500 mt-1">
+    Mindestens eine Rolle muss ausgewählt werden.
+  </p>
+</div>
             
             {/* Buttons */}
             <div className="flex justify-end space-x-3 pt-4">
