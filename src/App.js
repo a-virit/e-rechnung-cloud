@@ -14,6 +14,9 @@ import ConfigModal from './components/Config/ConfigModal';
 import InvoiceModal from './components/Invoices/InvoiceModal';
 import ProfileSystemSettings from './components/Settings/ProfileSystemSettings';
 import BusinessPartnerModal from './components/BusinessPartners/BusinessPartnerModal';
+import BusinessPartnerManagement from './components/BusinessPartners/BusinessPartnerManagement'; // NEU
+
+
 
 
 const App = () => {
