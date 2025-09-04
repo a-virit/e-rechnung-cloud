@@ -8,13 +8,17 @@ const BusinessPartnerModal = () => {
   const { modals } = state;
   const isOpen = modals.businessPartner;
 
-  const [formData, setFormData] = useState({
+  // 🔧 Standard Form Data als Konstante definieren
+  const getInitialFormData = () => ({
     name: '',
     primaryEmail: '',
     primaryPhone: '',
     externalBusinessPartnerNumber: '',
     selectedRoles: ['CUSTOMER'] // Standard: Kunde-Rolle
   });
+  const [formData, setFormData] = useState(getInitialFormData());
+
+  const [currentRoleIndex, setCurrentRoleIndex] = useState(0);
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,6 +26,17 @@ const BusinessPartnerModal = () => {
   // State für die Dropdown-Anzeige erweitern:
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [roleSearchTerm, setRoleSearchTerm] = useState('');
+
+  // 🔧 Form bei Modal-Öffnung/Schließung zurücksetzen
+  useEffect(() => {
+    if (isOpen) {
+      // Modal wird geöffnet - Form zurücksetzen
+      setFormData(getInitialFormData());
+      setErrors({});
+      setShowRoleDropdown(false);
+      setRoleSearchTerm('');
+    }
+  }, [isOpen]);
 
   // Nach dem useState hinzufügen:
   useEffect(() => {
@@ -50,36 +65,40 @@ const BusinessPartnerModal = () => {
   );
 
   // Rollen-Handler:
-  const toggleRole = (roleCode) => {
-    const newRoles = formData.selectedRoles.includes(roleCode)
-      ? formData.selectedRoles.filter(r => r !== roleCode)
-      : [...formData.selectedRoles, roleCode];
+const toggleRole = (roleCode) => {
+    // 🔧 Defensive Programmierung: Sicherstellen dass selectedRoles existiert
+    const currentRoles = formData.selectedRoles || [];
+    const newRoles = currentRoles.includes(roleCode)
+      ? currentRoles.filter(r => r !== roleCode)
+      : [...currentRoles, roleCode];
     handleInputChange('selectedRoles', newRoles);
   };
 
   const getSelectedRoleLabels = () => {
+    // 🔧 Defensive Programmierung: Fallback für undefined selectedRoles
+    if (!formData.selectedRoles || !Array.isArray(formData.selectedRoles)) {
+      return [];
+    }
     return formData.selectedRoles.map(roleCode =>
       availableRoles.find(r => r.code === roleCode)?.label || roleCode
     );
   };
 
-  // Modal schließen
+  // 🔧 KORRIGIERTE Modal schließen Funktion
   const handleClose = () => {
     actions.closeModal('businessPartner');
-    setFormData({
-      name: '',
-      primaryEmail: '',
-      primaryPhone: '',
-      externalBusinessPartnerNumber: ''
-    });
+    // Vollständigen Reset mit selectedRoles!
+    setFormData(getInitialFormData());
     setErrors({});
+    setShowRoleDropdown(false);
+    setRoleSearchTerm('');
   };
 
   // Form Validierung
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.selectedRoles || formData.selectedRoles.length === 0) {
+    if (!formData.selectedRoles || !Array.isArray(formData.selectedRoles) || formData.selectedRoles.length === 0) {
       newErrors.selectedRoles = 'Mindestens eine Partner-Rolle muss ausgewählt werden';
     }
 
@@ -271,6 +290,128 @@ const BusinessPartnerModal = () => {
               <p className="text-xs text-gray-500 mt-1">
                 Mindestens eine Rolle muss ausgewählt werden.
               </p>
+
+              {/* Adressen für ausgewählte Rollen - mit Tab-Navigation */}
+{formData.selectedRoles.length > 0 && (
+  <div className="mt-6">
+    <div className="flex justify-between items-center mb-4 border-b pb-2">
+      <h4 className="text-lg font-semibold">Adressen pro Rolle</h4>
+      
+      {/* Navigation Arrows */}
+      {formData.selectedRoles.length > 1 && (
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-500">
+            {(currentRoleIndex || 0) + 1} von {formData.selectedRoles.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCurrentRoleIndex(Math.max(0, (currentRoleIndex || 0) - 1))}
+            disabled={currentRoleIndex === 0}
+            className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentRoleIndex(Math.min(formData.selectedRoles.length - 1, (currentRoleIndex || 0) + 1))}
+            disabled={currentRoleIndex >= formData.selectedRoles.length - 1}
+            className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
+    </div>
+
+    {/* Aktuelle Rolle anzeigen */}
+    {(() => {
+      const roleIndex = currentRoleIndex || 0;
+      const roleCode = formData.selectedRoles[roleIndex];
+      const role = availableRoles.find(r => r.code === roleCode);
+      
+      return (
+        <div className="p-4 border border-gray-200 rounded-lg">
+          <h5 className="font-medium mb-3 text-blue-700 text-center">
+            {role?.label} - Adresse
+          </h5>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Gleiche Adressfelder wie vorher */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Straße</label>
+              <input
+                type="text"
+                placeholder="z.B. Hauptstraße"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hausnummer</label>
+              <input
+                type="text"
+                placeholder="123a"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">PLZ</label>
+              <input
+                type="text"
+                placeholder="12345"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ort</label>
+              <input
+                type="text"
+                placeholder="Berlin"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Land</label>
+              <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="Deutschland">Deutschland</option>
+                <option value="Österreich">Österreich</option>
+                <option value="Schweiz">Schweiz</option>
+              </select>
+            </div>
+            
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail für diese Rolle</label>
+              <input
+                type="email"
+                defaultValue={formData.primaryEmail}
+                placeholder="rolle@firma.de"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+              <input
+                type="tel"
+                defaultValue={formData.primaryPhone}
+                placeholder="+49 123 456789"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      );
+    })()}
+  </div>
+)}
+              
             </div>
 
             {/* Buttons */}
