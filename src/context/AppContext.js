@@ -20,17 +20,17 @@ const initialState = {
   },
 
   // NEU: Test-E-Mail Status
-  testEmailStatus: { 
+  testEmailStatus: {
     status: 'idle', // 'idle', 'sending', 'success', 'error'
-    message: '', 
-    timestamp: null 
+    message: '',
+    timestamp: null
   },
-  
+
   // UI State
   loading: true,
   submitting: false,
   error: null,
-  
+
   // Modal States
   modals: {
     customer: false,
@@ -38,11 +38,12 @@ const initialState = {
     invoice: false,
     businessPartner: false  // NEU
   },
-  
+
   // Edit States
   editingCustomer: null,
   editingInvoice: null,
-  
+  editingBusinessPartner: null,  // NEU - nach editingInvoice
+
   // Berechnete Werte
   stats: {
     incoming: 0,
@@ -62,24 +63,26 @@ const ActionTypes = {
   SET_TEST_EMAIL_STATUS: 'SET_TEST_EMAIL_STATUS',
   CLEAR_TEST_EMAIL_STATUS: 'CLEAR_TEST_EMAIL_STATUS',
 
+  SET_EDITING_BUSINESS_PARTNER: 'SET_EDITING_BUSINESS_PARTNER',  // NEU
+
   // Data Actions
   SET_INVOICES: 'SET_INVOICES',
   SET_CUSTOMERS: 'SET_CUSTOMERS',
   SET_CONFIG: 'SET_CONFIG',
-  
+
   // UI Actions
   SET_LOADING: 'SET_LOADING',
   SET_SUBMITTING: 'SET_SUBMITTING',
   SET_ERROR: 'SET_ERROR',
-  
+
   // Modal Actions
   OPEN_MODAL: 'OPEN_MODAL',
   CLOSE_MODAL: 'CLOSE_MODAL',
-  
+
   // Edit Actions
   SET_EDITING_CUSTOMER: 'SET_EDITING_CUSTOMER',
   SET_EDITING_INVOICE: 'SET_EDITING_INVOICE',
-  
+
   // Batch Actions
   RESET_STATE: 'RESET_STATE',
 
@@ -92,11 +95,17 @@ function appReducer(state, action) {
   switch (action.type) {
 
     case ActionTypes.SET_BUSINESS_PARTNERS:
-      return { 
-        ...state, 
-        businessPartners: action.payload 
+      return {
+        ...state,
+        businessPartners: action.payload
       };
-    
+
+    case ActionTypes.SET_EDITING_BUSINESS_PARTNER:
+      return {
+        ...state,
+        editingBusinessPartner: action.payload
+      };
+
     // NEU: Test-E-Mail Reducer Cases
     case ActionTypes.SET_TEST_EMAIL_STATUS:
       return {
@@ -115,23 +124,23 @@ function appReducer(state, action) {
       };
 
     case ActionTypes.SET_INVOICES:
-      return { 
-        ...state, 
+      return {
+        ...state,
         invoices: action.payload,
         stats: calculateInvoiceStats(action.payload),
         error: null
       };
-      
+
     case ActionTypes.SET_CUSTOMERS:
-      return { 
-        ...state, 
+      return {
+        ...state,
         customers: action.payload,
         error: null
       };
-      
+
     case ActionTypes.SET_CONFIG:
-      return { 
-        ...state, 
+      return {
+        ...state,
         config: {
           company: action.payload.company || {},
           email: action.payload.email || {},
@@ -140,66 +149,68 @@ function appReducer(state, action) {
         },
         error: null
       };
-      
+
     case ActionTypes.SET_LOADING:
-      return { 
-        ...state, 
-        loading: action.payload 
+      return {
+        ...state,
+        loading: action.payload
       };
-      
+
     case ActionTypes.SET_SUBMITTING:
-      return { 
-        ...state, 
-        submitting: action.payload 
+      return {
+        ...state,
+        submitting: action.payload
       };
-      
+
     case ActionTypes.SET_ERROR:
-      return { 
-        ...state, 
+      return {
+        ...state,
         error: action.payload,
         loading: false,
         submitting: false
       };
-      
+
     case ActionTypes.OPEN_MODAL:
-      return { 
-        ...state, 
-        modals: { 
-          ...state.modals, 
-          [action.modal]: true 
+      return {
+        ...state,
+        modals: {
+          ...state.modals,
+          [action.modal]: true
         }
       };
-      
+
     case ActionTypes.CLOSE_MODAL:
-      return { 
-        ...state, 
-        modals: { 
-          ...state.modals, 
-          [action.modal]: false 
+      return {
+        ...state,
+        modals: {
+          ...state.modals,
+          [action.modal]: false
         },
         // Reset editing states when closing modals
         ...(action.modal === 'customer' && { editingCustomer: null }),
-        ...(action.modal === 'invoice' && { editingInvoice: null })
+        ...(action.modal === 'invoice' && { editingInvoice: null }),
+        ...(action.modal === 'businessPartner' && { editingBusinessPartner: null }) // NEU
+
       };
-      
+
     case ActionTypes.SET_EDITING_CUSTOMER:
-      return { 
-        ...state, 
-        editingCustomer: action.payload 
+      return {
+        ...state,
+        editingCustomer: action.payload
       };
-      
+
     case ActionTypes.SET_EDITING_INVOICE:
-      return { 
-        ...state, 
-        editingInvoice: action.payload 
+      return {
+        ...state,
+        editingInvoice: action.payload
       };
-      
+
     case ActionTypes.RESET_STATE:
-      return { 
+      return {
         ...initialState,
         config: state.config // Config beibehalten
       };
-      
+
     default:
       console.warn(`Unhandled action type: ${action.type}`);
       return state;
@@ -214,9 +225,9 @@ export function AppProvider({ children }) {
   const handleError = (error, context = '') => {
     console.error(`Error in ${context}:`, error);
     const errorMessage = error.message || 'Ein unbekannter Fehler ist aufgetreten';
-    dispatch({ 
-      type: ActionTypes.SET_ERROR, 
-      payload: `${context}: ${errorMessage}` 
+    dispatch({
+      type: ActionTypes.SET_ERROR,
+      payload: `${context}: ${errorMessage}`
     });
   };
 
@@ -244,19 +255,19 @@ export function AppProvider({ children }) {
   };
 
   const loadBusinessPartners = async () => {
-  try {
-    dispatch({ type: ActionTypes.SET_LOADING, payload: true });
-    const businessPartners = await businessPartnerService.getAll();
-    dispatch({ 
-      type: ActionTypes.SET_BUSINESS_PARTNERS, 
-      payload: businessPartners 
-    });
-  } catch (error) {
-    handleError(error, 'Business Partner laden');
-  } finally {
-    dispatch({ type: ActionTypes.SET_LOADING, payload: false });
-  }
-};
+    try {
+      dispatch({ type: ActionTypes.SET_LOADING, payload: true });
+      const businessPartners = await businessPartnerService.getAll();
+      dispatch({
+        type: ActionTypes.SET_BUSINESS_PARTNERS,
+        payload: businessPartners
+      });
+    } catch (error) {
+      handleError(error, 'Business Partner laden');
+    } finally {
+      dispatch({ type: ActionTypes.SET_LOADING, payload: false });
+    }
+  };
 
   const loadConfig = async () => {
     try {
@@ -272,82 +283,108 @@ export function AppProvider({ children }) {
   // Actions Object
   const actions = {
 
-      // === BUSINESS PARTNER ACTIONS ===
-  loadBusinessPartners,
-  
-  refreshBusinessPartners: async () => {
-    dispatch({ type: ActionTypes.SET_LOADING, payload: true });
-    await loadBusinessPartners();
-    dispatch({ type: ActionTypes.SET_LOADING, payload: false });
-  },
-  
-  saveBusinessPartner: async (partnerData, isEdit = false) => {
-    dispatch({ type: ActionTypes.SET_SUBMITTING, payload: true });
-    try {
-      if (isEdit) {
-        // TODO: Update implementieren später
-        // await businessPartnerService.update(partnerData.businessPartnerNumber, partnerData);
-      } else {
-        await businessPartnerService.create(partnerData);
-      }
+    // === BUSINESS PARTNER ACTIONS ===
+    loadBusinessPartners,
+
+    refreshBusinessPartners: async () => {
+      dispatch({ type: ActionTypes.SET_LOADING, payload: true });
       await loadBusinessPartners();
-      const message = isEdit ? 'Business Partner erfolgreich aktualisiert!' : 'Business Partner erfolgreich erstellt!';
-      return { success: true, message };
-    } catch (error) {
-      handleError(error, isEdit ? 'Business Partner aktualisieren' : 'Business Partner erstellen');
-      return { success: false, error: error.message };
-    } finally {
-      dispatch({ type: ActionTypes.SET_SUBMITTING, payload: false });
-    }
-  },
+      dispatch({ type: ActionTypes.SET_LOADING, payload: false });
+    },
+
+    saveBusinessPartner: async (partnerData, isEdit = false) => {
+      dispatch({ type: ActionTypes.SET_SUBMITTING, payload: true });
+      try {
+        if (isEdit) {
+          // TODO: Update implementieren später
+          // await businessPartnerService.update(partnerData.businessPartnerNumber, partnerData);
+        } else {
+          await businessPartnerService.create(partnerData);
+        }
+        await loadBusinessPartners();
+        const message = isEdit ? 'Business Partner erfolgreich aktualisiert!' : 'Business Partner erfolgreich erstellt!';
+        return { success: true, message };
+      } catch (error) {
+        handleError(error, isEdit ? 'Business Partner aktualisieren' : 'Business Partner erstellen');
+        return { success: false, error: error.message };
+      } finally {
+        dispatch({ type: ActionTypes.SET_SUBMITTING, payload: false });
+      }
+    },
+
+    editBusinessPartner: (partner) => {
+      dispatch({ type: ActionTypes.SET_EDITING_BUSINESS_PARTNER, payload: partner });
+      if (partner) {
+        dispatch({ type: ActionTypes.OPEN_MODAL, modal: 'businessPartner' });
+      }
+    },
+
+    saveBusinessPartner: async (partnerData, isEdit = false) => {
+      dispatch({ type: ActionTypes.SET_SUBMITTING, payload: true });
+      try {
+        if (isEdit && state.editingBusinessPartner) {
+          await businessPartnerService.update(state.editingBusinessPartner.businessPartnerNumber, partnerData);
+        } else {
+          await businessPartnerService.create(partnerData);
+        }
+        await loadBusinessPartners();
+        const message = isEdit ? 'Business Partner erfolgreich aktualisiert!' : 'Business Partner erfolgreich erstellt!';
+        return { success: true, message };
+      } catch (error) {
+        handleError(error, isEdit ? 'Business Partner aktualisieren' : 'Business Partner erstellen');
+        return { success: false, error: error.message };
+      } finally {
+        dispatch({ type: ActionTypes.SET_SUBMITTING, payload: false });
+      }
+    },
 
     // NEU: Test-E-Mail-Funktionen
-  sendTestEmail: async (emailConfig, companyConfig) => {
-    dispatch({ 
-      type: ActionTypes.SET_TEST_EMAIL_STATUS, 
-      payload: { status: 'sending', message: 'Test-E-Mail wird versendet...' }
-    });
-
-    try {
-      const response = await fetch('/api/test-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          emailConfig,
-          companyConfig
-        })
+    sendTestEmail: async (emailConfig, companyConfig) => {
+      dispatch({
+        type: ActionTypes.SET_TEST_EMAIL_STATUS,
+        payload: { status: 'sending', message: 'Test-E-Mail wird versendet...' }
       });
 
-      const result = await response.json();
+      try {
+        const response = await fetch('/api/test-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            emailConfig,
+            companyConfig
+          })
+        });
 
-      if (result.success) {
-        dispatch({ 
-          type: ActionTypes.SET_TEST_EMAIL_STATUS, 
-          payload: { 
-            status: 'success', 
-            message: `✅ Test-E-Mail erfolgreich versendet über ${result.data.provider}! Überprüfen Sie: ${emailConfig.senderEmail}`
+        const result = await response.json();
+
+        if (result.success) {
+          dispatch({
+            type: ActionTypes.SET_TEST_EMAIL_STATUS,
+            payload: {
+              status: 'success',
+              message: `✅ Test-E-Mail erfolgreich versendet über ${result.data.provider}! Überprüfen Sie: ${emailConfig.senderEmail}`
+            }
+          });
+        } else {
+          throw new Error(result.error);
+        }
+
+        return result;
+      } catch (error) {
+        dispatch({
+          type: ActionTypes.SET_TEST_EMAIL_STATUS,
+          payload: {
+            status: 'error',
+            message: `❌ Test-Versand fehlgeschlagen: ${error.message}`
           }
         });
-      } else {
-        throw new Error(result.error);
+        throw error;
       }
+    },
 
-      return result;
-    } catch (error) {
-      dispatch({ 
-        type: ActionTypes.SET_TEST_EMAIL_STATUS, 
-        payload: { 
-          status: 'error', 
-          message: `❌ Test-Versand fehlgeschlagen: ${error.message}`
-        }
-      });
-      throw error;
-    }
-  },
-
-  clearTestEmailStatus: () => {
-    dispatch({ type: ActionTypes.CLEAR_TEST_EMAIL_STATUS });
-  },
+    clearTestEmailStatus: () => {
+      dispatch({ type: ActionTypes.CLEAR_TEST_EMAIL_STATUS });
+    },
 
     // === INVOICE ACTIONS ===
     refreshInvoices: async () => {
@@ -355,7 +392,7 @@ export function AppProvider({ children }) {
       await loadInvoices();
       dispatch({ type: ActionTypes.SET_LOADING, payload: false });
     },
-    
+
     createInvoice: async (invoiceData) => {
       dispatch({ type: ActionTypes.SET_SUBMITTING, payload: true });
       try {
@@ -369,7 +406,7 @@ export function AppProvider({ children }) {
         dispatch({ type: ActionTypes.SET_SUBMITTING, payload: false });
       }
     },
-    
+
     sendInvoice: async (invoiceId) => {
       dispatch({ type: ActionTypes.SET_SUBMITTING, payload: true });
       try {
@@ -383,7 +420,7 @@ export function AppProvider({ children }) {
         dispatch({ type: ActionTypes.SET_SUBMITTING, payload: false });
       }
     },
-    
+
     deleteInvoice: async (invoiceId) => {
       try {
         await invoiceService.delete(invoiceId);
@@ -394,7 +431,7 @@ export function AppProvider({ children }) {
         return { success: false, error: error.message };
       }
     },
-    
+
     downloadInvoicePDF: async (invoiceId, invoiceNumber) => {
       try {
         await invoiceService.downloadPDF(invoiceId, invoiceNumber);
@@ -411,7 +448,7 @@ export function AppProvider({ children }) {
       await loadCustomers();
       dispatch({ type: ActionTypes.SET_LOADING, payload: false });
     },
-    
+
     saveCustomer: async (customerData, isEdit = false) => {
       dispatch({ type: ActionTypes.SET_SUBMITTING, payload: true });
       try {
@@ -432,7 +469,7 @@ export function AppProvider({ children }) {
         dispatch({ type: ActionTypes.SET_SUBMITTING, payload: false });
       }
     },
-    
+
     deleteCustomer: async (customerId) => {
       try {
         await customerService.delete(customerId);
@@ -463,7 +500,7 @@ export function AppProvider({ children }) {
     openModal: (modalName) => {
       dispatch({ type: ActionTypes.OPEN_MODAL, modal: modalName });
     },
-    
+
     closeModal: (modalName) => {
       dispatch({ type: ActionTypes.CLOSE_MODAL, modal: modalName });
     },
@@ -475,7 +512,7 @@ export function AppProvider({ children }) {
         dispatch({ type: ActionTypes.OPEN_MODAL, modal: 'customer' });
       }
     },
-    
+
     editInvoice: (invoice) => {
       dispatch({ type: ActionTypes.SET_EDITING_INVOICE, payload: invoice });
       if (invoice) {
@@ -487,7 +524,7 @@ export function AppProvider({ children }) {
     clearError: () => {
       dispatch({ type: ActionTypes.SET_ERROR, payload: null });
     },
-    
+
     resetApp: () => {
       dispatch({ type: ActionTypes.RESET_STATE });
     }
@@ -497,7 +534,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const initializeApp = async () => {
       dispatch({ type: ActionTypes.SET_LOADING, payload: true });
-      
+
       try {
         // Alle Daten parallel laden
         await Promise.all([
@@ -517,7 +554,7 @@ export function AppProvider({ children }) {
 
     // Auto-refresh für Rechnungen alle 30 Sekunden
     const interval = setInterval(() => {
-      loadInvoices().catch(error => 
+      loadInvoices().catch(error =>
         console.warn('Auto-refresh failed:', error)
       );
     }, 30000);
@@ -532,7 +569,7 @@ export function AppProvider({ children }) {
       const timer = setTimeout(() => {
         dispatch({ type: ActionTypes.SET_ERROR, payload: null });
       }, 10000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [state.error]);
@@ -547,8 +584,8 @@ export function AppProvider({ children }) {
     get hasError() { return !!state.error; },
     get invoiceCount() { return state.invoices.length; },
     get customerCount() { return state.customers.length; },
-    get isConfigured() { 
-      return !!(state.config.company?.name && state.config.email?.user); 
+    get isConfigured() {
+      return !!(state.config.company?.name && state.config.email?.user);
     }
   };
 
@@ -562,11 +599,11 @@ export function AppProvider({ children }) {
 // Hook für Context-Verwendung
 export const useApp = () => {
   const context = useContext(AppContext);
-  
+
   if (!context) {
     throw new Error('useApp must be used within an AppProvider');
   }
-  
+
   return context;
 };
 

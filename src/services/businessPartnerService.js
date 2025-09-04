@@ -39,7 +39,7 @@ class BusinessPartnerService {
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Fehler beim Laden der Business Partner');
       }
@@ -67,7 +67,7 @@ class BusinessPartnerService {
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Fehler beim Erstellen des Business Partners');
       }
@@ -76,6 +76,31 @@ class BusinessPartnerService {
     } catch (error) {
       console.error('Error creating business partner:', error);
       throw new Error('Fehler beim Erstellen des Business Partners: ' + error.message);
+    }
+  }
+
+  async update(businessPartnerNumber, partnerData) {
+    try {
+      const response = await fetch(`${this.baseURL}/api/business-partners?businessPartnerNumber=${businessPartnerNumber}`, {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(partnerData)
+      });
+
+      if (!response.ok) {
+        this.handleAuthError(new Error('Failed to update business partner'), response);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Fehler beim Aktualisieren des Business Partners');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error updating business partner:', error);
+      throw new Error('Fehler beim Aktualisieren des Business Partners: ' + error.message);
     }
   }
 

@@ -4,9 +4,10 @@ import { X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 const BusinessPartnerModal = () => {
-  const { state, actions } = useApp();
-  const { modals } = state;
-  const isOpen = modals.businessPartner;
+const { state, actions } = useApp();
+const { modals, editingBusinessPartner } = state;  // editingBusinessPartner hinzufügen
+const isOpen = modals.businessPartner;
+const isEditing = Boolean(editingBusinessPartner);  // NEU
 
   // 🔧 Standard Form Data als Konstante definieren
   const getInitialFormData = () => ({
@@ -27,16 +28,27 @@ const BusinessPartnerModal = () => {
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [roleSearchTerm, setRoleSearchTerm] = useState('');
 
-  // 🔧 Form bei Modal-Öffnung/Schließung zurücksetzen
-  useEffect(() => {
-    if (isOpen) {
-      // Modal wird geöffnet - Form zurücksetzen
+  // 🔧 Form bei Modal-Öffnung/Schließung zurücksetzen ODER mit Edit-Daten füllen
+useEffect(() => {
+  if (isOpen) {
+    if (editingBusinessPartner) {
+      // Editing mode - Form mit bestehenden Daten füllen
+      setFormData({
+        name: editingBusinessPartner.name,
+        primaryEmail: editingBusinessPartner.primaryEmail,
+        primaryPhone: editingBusinessPartner.primaryPhone || '',
+        externalBusinessPartnerNumber: editingBusinessPartner.externalBusinessPartnerNumber || '',
+        selectedRoles: editingBusinessPartner.roles?.map(role => role.roleCode) || ['CUSTOMER']
+      });
+    } else {
+      // Create mode - Form zurücksetzen
       setFormData(getInitialFormData());
-      setErrors({});
-      setShowRoleDropdown(false);
-      setRoleSearchTerm('');
     }
-  }, [isOpen]);
+    setErrors({});
+    setShowRoleDropdown(false);
+    setRoleSearchTerm('');
+  }
+}, [isOpen, editingBusinessPartner]);  // editingBusinessPartner dependency hinzufügen
 
   // Nach dem useState hinzufügen:
   useEffect(() => {
@@ -125,7 +137,7 @@ const toggleRole = (roleCode) => {
     setIsSubmitting(true);
 
     try {
-      const result = await actions.saveBusinessPartner(formData, false);
+      const result = await actions.saveBusinessPartner(formData, isEditing);  // true für Edit
 
       if (result && result.success !== false) {
         handleClose();
@@ -158,7 +170,9 @@ const toggleRole = (roleCode) => {
         <div className="p-6">
           {/* Header */}
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Neuer Business Partner</h2>
+            <h2 className="text-xl font-bold">
+  {isEditing ? 'Business Partner bearbeiten' : 'Neuer Business Partner'}
+</h2>
             <button onClick={handleClose} disabled={isSubmitting}>
               <X className="w-5 h-5" />
             </button>
@@ -429,7 +443,10 @@ const toggleRole = (roleCode) => {
                 disabled={isSubmitting}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center"
               >
-                {isSubmitting ? 'Erstelle...' : 'Erstellen'}
+                {isSubmitting ? 
+  (isEditing ? 'Speichere...' : 'Erstelle...') : 
+  (isEditing ? 'Speichern' : 'Erstellen')
+}
               </button>
             </div>
           </form>

@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
-    
+
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     // GET - Alle Business Partner laden
     if (req.method === 'GET') {
       const businessPartners = await kv.get(BUSINESS_PARTNERS_KEY) || [];
-      
+
       return res.status(200).json({
         success: true,
         data: businessPartners,
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
     // POST - Neuen Business Partner erstellen
     if (req.method === 'POST') {
       const { name, primaryEmail, primaryPhone, externalBusinessPartnerNumber, selectedRoles } = req.body;
-      
+
       if (!name || !primaryEmail) {
         return res.status(400).json({
           success: false,
@@ -69,48 +69,48 @@ export default async function handler(req, res) {
       }
 
       const currentPartners = await kv.get(BUSINESS_PARTNERS_KEY) || [];
-      
+
       // Automatische Business Partner Nummer generieren
       const generatePartnerNumber = (existingPartners) => {
         const existingNumbers = existingPartners
           .map(bp => parseInt(bp.businessPartnerNumber) || 0)
           .filter(n => n > 0);
-        
-        const nextNumber = existingNumbers.length > 0 
-          ? Math.max(...existingNumbers) + 1 
+
+        const nextNumber = existingNumbers.length > 0
+          ? Math.max(...existingNumbers) + 1
           : 1;
-        
+
         return nextNumber.toString().padStart(15, '0');
       };
-      
-      const businessPartnerNumber = generatePartnerNumber(currentPartners);
-      
-      // Rollen basierend auf Auswahl erstellen
-const createRolesFromSelection = (selectedRoles, primaryEmail, primaryPhone) => {
-  const roleMap = {
-    'CUSTOMER': 'Kunde',
-    'SUPPLIER': 'Lieferant', 
-    'BILLING': 'Rechnungsempfänger',
-    'DELIVERY': 'Lieferadresse'
-  };
 
-    return selectedRoles.map(roleCode => ({
-    roleCode,
-    roleLabel: roleMap[roleCode] || roleCode,
-    status: 'ACTIVE',
-    address: {
-      street: '',
-      houseNumber: '',
-      addressLine2: '',
-      postalCode: '',
-      city: '',
-      country: 'Deutschland',
-      poBox: '',
-      email: primaryEmail, // Übernimmt primäre E-Mail als Standard
-      phone: primaryPhone || ''
-    }
-  }));
-};
+      const businessPartnerNumber = generatePartnerNumber(currentPartners);
+
+      // Rollen basierend auf Auswahl erstellen
+      const createRolesFromSelection = (selectedRoles, primaryEmail, primaryPhone) => {
+        const roleMap = {
+          'CUSTOMER': 'Kunde',
+          'SUPPLIER': 'Lieferant',
+          'BILLING': 'Rechnungsempfänger',
+          'DELIVERY': 'Lieferadresse'
+        };
+
+        return selectedRoles.map(roleCode => ({
+          roleCode,
+          roleLabel: roleMap[roleCode] || roleCode,
+          status: 'ACTIVE',
+          address: {
+            street: '',
+            houseNumber: '',
+            addressLine2: '',
+            postalCode: '',
+            city: '',
+            country: 'Deutschland',
+            poBox: '',
+            email: primaryEmail, // Übernimmt primäre E-Mail als Standard
+            phone: primaryPhone || ''
+          }
+        }));
+      };
 
       const newPartner = {
         businessPartnerNumber,
@@ -119,23 +119,99 @@ const createRolesFromSelection = (selectedRoles, primaryEmail, primaryPhone) => 
         status: 'ACTIVE',
         primaryEmail,
         primaryPhone: primaryPhone || '',
- // Rollen basierend auf Auswahl
-  roles: createRolesFromSelection(selectedRoles || ['CUSTOMER'], primaryEmail, primaryPhone),
-  
+        // Rollen basierend auf Auswahl
+        roles: createRolesFromSelection(selectedRoles || ['CUSTOMER'], primaryEmail, primaryPhone),
+
         contacts: [], // Leer starten, später erweitern
         companyId: 'default',
         createdAt: new Date().toISOString(),
         createdBy: 'current-user'
       };
-      
+
       const updatedPartners = [newPartner, ...currentPartners];
       await kv.set(BUSINESS_PARTNERS_KEY, updatedPartners);
-      
+
       console.log('✅ Business Partner created with number:', businessPartnerNumber);
-      
+
       return res.status(201).json({
         success: true,
         data: newPartner
+      });
+    }
+
+    // PUT - Business Partner aktualisieren
+    if (req.method === 'PUT') {
+      const { businessPartnerNumber } = req.query;
+      const { name, primaryEmail, primaryPhone, externalBusinessPartnerNumber, selectedRoles } = req.body;
+
+      if (!businessPartnerNumber) {
+        return res.status(400).json({
+          success: false,
+          error: 'Business Partner Nummer ist erforderlich'
+        });
+      }
+
+      if (!name || !primaryEmail) {
+        return res.status(400).json({
+          success: false,
+          error: 'Name und primäre E-Mail sind erforderlich'
+        });
+      }
+
+      const currentPartners = await kv.get(BUSINESS_PARTNERS_KEY) || [];
+      const partnerIndex = currentPartners.findIndex(bp => bp.businessPartnerNumber === businessPartnerNumber);
+
+      if (partnerIndex === -1) {
+        return res.status(404).json({
+          success: false,
+          error: 'Business Partner nicht gefunden'
+        });
+      }
+
+      // Rollen aktualisieren
+      const createRolesFromSelection = (selectedRoles, primaryEmail, primaryPhone) => {
+        const roleMap = {
+          'CUSTOMER': 'Kunde',
+          'SUPPLIER': 'Lieferant',
+          'BILLING': 'Rechnungsempfänger',
+          'DELIVERY': 'Lieferadresse'
+        };
+
+        return selectedRoles.map(roleCode => ({
+          roleCode,
+          roleLabel: roleMap[roleCode] || roleCode,
+          status: 'ACTIVE',
+          address: {
+            street: '',
+            houseNumber: '',
+            addressLine2: '',
+            postalCode: '',
+            city: '',
+            country: 'Deutschland',
+            poBox: '',
+            email: primaryEmail,
+            phone: primaryPhone || ''
+          }
+        }));
+      };
+
+      // Business Partner aktualisieren
+      currentPartners[partnerIndex] = {
+        ...currentPartners[partnerIndex],
+        name,
+        primaryEmail,
+        primaryPhone: primaryPhone || '',
+        externalBusinessPartnerNumber: externalBusinessPartnerNumber || '',
+        roles: createRolesFromSelection(selectedRoles || ['CUSTOMER'], primaryEmail, primaryPhone),
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'current-user'
+      };
+
+      await kv.set(BUSINESS_PARTNERS_KEY, currentPartners);
+
+      return res.status(200).json({
+        success: true,
+        data: currentPartners[partnerIndex]
       });
     }
 
@@ -143,7 +219,7 @@ const createRolesFromSelection = (selectedRoles, primaryEmail, primaryPhone) => 
       success: false,
       error: 'Method not allowed'
     });
-    
+
   } catch (error) {
     console.error('❌ Business Partner API error:', error);
     return res.status(500).json({
