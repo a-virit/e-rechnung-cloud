@@ -12,6 +12,7 @@ const BusinessPartnerManagement = () => {
   const [selectedRoleFilter, setSelectedRoleFilter] = useState('ALL');
   const [sortField, setSortField] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('ACTIVE');
 
   // Role mapping für Display
   const roleMapping = {
@@ -26,6 +27,11 @@ const BusinessPartnerManagement = () => {
   // Filtered and sorted business partners
   const filteredAndSortedPartners = useMemo(() => {
     let filtered = businessPartners;
+
+    // Status filter (NEU)
+    if (selectedStatusFilter !== 'ALL') {
+      filtered = filtered.filter(bp => bp.status === selectedStatusFilter);
+    }
 
     // Search filter
     if (searchTerm) {
@@ -62,7 +68,7 @@ const BusinessPartnerManagement = () => {
     });
 
     return filtered;
-  }, [businessPartners, searchTerm, selectedRoleFilter, sortField, sortDirection]);
+  }, [businessPartners, searchTerm, selectedRoleFilter, selectedStatusFilter, sortField, sortDirection]);
 
   // Get unique roles for filter dropdown
   const availableRoles = useMemo(() => {
@@ -88,7 +94,7 @@ const BusinessPartnerManagement = () => {
   // Get role badges for a business partner
   const getRoleBadges = (roles) => {
     if (!roles || roles.length === 0) return null;
-    
+
     return roles.map((role, index) => (
       <span
         key={index}
@@ -105,8 +111,7 @@ const BusinessPartnerManagement = () => {
   };
 
   const handleDelete = (partner) => {
-    console.log('Delete partner:', partner);
-    // TODO: Implement delete functionality
+    actions.deactivateBusinessPartner(partner.businessPartnerNumber);
   };
 
   const handleView = (partner) => {
@@ -154,6 +159,19 @@ const BusinessPartnerManagement = () => {
             />
           </div>
 
+          {/* Status Filter (NEU) */}
+          <div className="relative">
+            <select
+              value={selectedStatusFilter}
+              onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              className="pl-3 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white min-w-[140px]"
+            >
+              <option value="ACTIVE">Nur Aktive</option>
+              <option value="INACTIVE">Nur Inaktive</option>
+              <option value="ALL">Alle Status</option>
+            </select>
+          </div>
+
           {/* Role Filter */}
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -182,6 +200,7 @@ const BusinessPartnerManagement = () => {
               onClick={() => {
                 setSearchTerm('');
                 setSelectedRoleFilter('ALL');
+                setSelectedStatusFilter('ACTIVE'); // NEU
               }}
               className="text-blue-600 hover:text-blue-800 font-medium"
             >
@@ -199,7 +218,7 @@ const BusinessPartnerManagement = () => {
               <Plus className="w-16 h-16 mx-auto" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || selectedRoleFilter !== 'ALL' 
+              {searchTerm || selectedRoleFilter !== 'ALL'
                 ? 'Keine Business Partner gefunden'
                 : 'Noch keine Business Partner erstellt'
               }
@@ -316,11 +335,10 @@ const BusinessPartnerManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        partner.status === 'ACTIVE' 
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${partner.status === 'ACTIVE'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}>
                         {partner.status === 'ACTIVE' ? 'Aktiv' : 'Inaktiv'}
                       </span>
                     </td>

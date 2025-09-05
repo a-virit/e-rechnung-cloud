@@ -4,10 +4,10 @@ import { X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 const BusinessPartnerModal = () => {
-const { state, actions } = useApp();
-const { modals, editingBusinessPartner } = state;  // editingBusinessPartner hinzufügen
-const isOpen = modals.businessPartner;
-const isEditing = Boolean(editingBusinessPartner);  // NEU
+  const { state, actions } = useApp();
+  const { modals, editingBusinessPartner } = state;  // editingBusinessPartner hinzufügen
+  const isOpen = modals.businessPartner;
+  const isEditing = Boolean(editingBusinessPartner);  // NEU
 
   // 🔧 Standard Form Data als Konstante definieren
   const getInitialFormData = () => ({
@@ -15,8 +15,20 @@ const isEditing = Boolean(editingBusinessPartner);  // NEU
     primaryEmail: '',
     primaryPhone: '',
     externalBusinessPartnerNumber: '',
-    selectedRoles: ['CUSTOMER'] // Standard: Kunde-Rolle
+    selectedRoles: ['CUSTOMER'], // Standard: Kunde-Rolle
+    roleAddresses: {} // NEU - für Adressen pro Rolle
   });
+
+  const getEmptyAddress = (primaryEmail = '', primaryPhone = '') => ({
+    street: '',
+    houseNumber: '',
+    postalCode: '',
+    city: '',
+    country: 'Deutschland',
+    email: primaryEmail,
+    phone: primaryPhone
+  });
+
   const [formData, setFormData] = useState(getInitialFormData());
 
   const [currentRoleIndex, setCurrentRoleIndex] = useState(0);
@@ -28,27 +40,76 @@ const isEditing = Boolean(editingBusinessPartner);  // NEU
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [roleSearchTerm, setRoleSearchTerm] = useState('');
 
-  // 🔧 Form bei Modal-Öffnung/Schließung zurücksetzen ODER mit Edit-Daten füllen
-useEffect(() => {
-  if (isOpen) {
-    if (editingBusinessPartner) {
-      // Editing mode - Form mit bestehenden Daten füllen
-      setFormData({
-        name: editingBusinessPartner.name,
-        primaryEmail: editingBusinessPartner.primaryEmail,
-        primaryPhone: editingBusinessPartner.primaryPhone || '',
-        externalBusinessPartnerNumber: editingBusinessPartner.externalBusinessPartnerNumber || '',
-        selectedRoles: editingBusinessPartner.roles?.map(role => role.roleCode) || ['CUSTOMER']
-      });
-    } else {
-      // Create mode - Form zurücksetzen
-      setFormData(getInitialFormData());
+  useEffect(() => {
+    if (isOpen) {
+      if (editingBusinessPartner) {
+        const existingRoles = editingBusinessPartner.roles?.map(role => role.roleCode) || ['CUSTOMER'];
+        const roleAddresses = {};
+
+        //console.log('🔍 DEBUG editingBusinessPartner:', editingBusinessPartner);
+        console.log('🔍 DEBUG roleAddresses will be:', roleAddresses);
+
+        // NEU HINZUFÜGEN - diese Zeilen sind nicht im Code:
+        console.log('🔍 DEBUG roles structure:', editingBusinessPartner.roles);
+        console.log('🔍 DEBUG roles length:', editingBusinessPartner.roles?.length);
+        console.log('🔍 DEBUG all properties:', Object.keys(editingBusinessPartner));
+
+        if (editingBusinessPartner.roles && editingBusinessPartner.roles.length > 0) {
+          editingBusinessPartner.roles.forEach((role, index) => {
+            console.log(`🔍 Role ${index}:`, role);
+            console.log(`🔍 Role ${index} address:`, role.address);
+          });
+        } else {
+          console.log('🔍 NO ROLES FOUND or EMPTY ROLES ARRAY');
+        }
+
+        existingRoles.forEach(roleCode => {
+          const existingRole = editingBusinessPartner.roles?.find(r => r.roleCode === roleCode);
+          console.log(`🔍 Processing roleCode: ${roleCode}`);
+          console.log(`🔍 Found existingRole:`, existingRole);
+          console.log(`🔍 existingRole address:`, existingRole?.address);
+
+          const realAddress = existingRole?.address?.[roleCode] || existingRole?.address || {};
+
+          roleAddresses[roleCode] = {
+            street: realAddress.street || '',
+            houseNumber: realAddress.houseNumber || '',
+            addressLine2: realAddress.addressLine2 || '',
+            postalCode: realAddress.postalCode || '',
+            city: realAddress.city || '',
+            country: realAddress.country || 'Deutschland',
+            email: realAddress.email || editingBusinessPartner.primaryEmail,
+            phone: realAddress.phone || editingBusinessPartner.primaryPhone,
+            poBox: realAddress.poBox || ''
+          };
+
+          console.log(`🔍 existingRole.address[${roleCode}]:`, existingRole?.address?.[roleCode]);
+          console.log(`🔍 Real address data:`, realAddress);
+
+          console.log(`🔍 Set roleAddresses[${roleCode}]:`, roleAddresses[roleCode]);
+        });
+
+        console.log('🔍 FINAL roleAddresses:', roleAddresses);
+
+        setFormData({
+          name: editingBusinessPartner.name,
+          primaryEmail: editingBusinessPartner.primaryEmail,
+          primaryPhone: editingBusinessPartner.primaryPhone || '',
+          externalBusinessPartnerNumber: editingBusinessPartner.externalBusinessPartnerNumber || '', // ✅ BEHALTEN
+          selectedRoles: existingRoles,
+          roleAddresses: roleAddresses
+        });
+      } else {
+        const initialData = getInitialFormData();
+        initialData.roleAddresses['CUSTOMER'] = getEmptyAddress();
+        setFormData(initialData);
+      }
+      setErrors({});
+      setShowRoleDropdown(false);
+      setRoleSearchTerm('');
+      setCurrentRoleIndex(0);
     }
-    setErrors({});
-    setShowRoleDropdown(false);
-    setRoleSearchTerm('');
-  }
-}, [isOpen, editingBusinessPartner]);  // editingBusinessPartner dependency hinzufügen
+  }, [isOpen, editingBusinessPartner]);
 
   // Nach dem useState hinzufügen:
   useEffect(() => {
@@ -77,13 +138,43 @@ useEffect(() => {
   );
 
   // Rollen-Handler:
-const toggleRole = (roleCode) => {
-    // 🔧 Defensive Programmierung: Sicherstellen dass selectedRoles existiert
+  const toggleRole = (roleCode) => {
     const currentRoles = formData.selectedRoles || [];
-    const newRoles = currentRoles.includes(roleCode)
-      ? currentRoles.filter(r => r !== roleCode)
-      : [...currentRoles, roleCode];
-    handleInputChange('selectedRoles', newRoles);
+    const currentAddresses = { ...formData.roleAddresses };
+
+    if (currentRoles.includes(roleCode)) {
+      const newRoles = currentRoles.filter(r => r !== roleCode);
+      delete currentAddresses[roleCode];
+      setFormData(prev => ({
+        ...prev,
+        selectedRoles: newRoles,
+        roleAddresses: currentAddresses
+      }));
+      if (currentRoleIndex >= newRoles.length) {
+        setCurrentRoleIndex(Math.max(0, newRoles.length - 1));
+      }
+    } else {
+      const newRoles = [...currentRoles, roleCode];
+      currentAddresses[roleCode] = getEmptyAddress(formData.primaryEmail, formData.primaryPhone);
+      setFormData(prev => ({
+        ...prev,
+        selectedRoles: newRoles,
+        roleAddresses: currentAddresses
+      }));
+    }
+  };
+
+  const handleAddressChange = (roleCode, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      roleAddresses: {
+        ...prev.roleAddresses,
+        [roleCode]: {
+          ...prev.roleAddresses[roleCode],
+          [field]: value
+        }
+      }
+    }));
   };
 
   const getSelectedRoleLabels = () => {
@@ -171,8 +262,8 @@ const toggleRole = (roleCode) => {
           {/* Header */}
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">
-  {isEditing ? 'Business Partner bearbeiten' : 'Neuer Business Partner'}
-</h2>
+              {isEditing ? 'Business Partner bearbeiten' : 'Neuer Business Partner'}
+            </h2>
             <button onClick={handleClose} disabled={isSubmitting}>
               <X className="w-5 h-5" />
             </button>
@@ -306,126 +397,141 @@ const toggleRole = (roleCode) => {
               </p>
 
               {/* Adressen für ausgewählte Rollen - mit Tab-Navigation */}
-{formData.selectedRoles.length > 0 && (
-  <div className="mt-6">
-    <div className="flex justify-between items-center mb-4 border-b pb-2">
-      <h4 className="text-lg font-semibold">Adressen pro Rolle</h4>
-      
-      {/* Navigation Arrows */}
-      {formData.selectedRoles.length > 1 && (
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-500">
-            {(currentRoleIndex || 0) + 1} von {formData.selectedRoles.length}
-          </span>
-          <button
-            type="button"
-            onClick={() => setCurrentRoleIndex(Math.max(0, (currentRoleIndex || 0) - 1))}
-            disabled={currentRoleIndex === 0}
-            className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrentRoleIndex(Math.min(formData.selectedRoles.length - 1, (currentRoleIndex || 0) + 1))}
-            disabled={currentRoleIndex >= formData.selectedRoles.length - 1}
-            className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      )}
-    </div>
+              {formData.selectedRoles.length > 0 && (
+                <div className="mt-6">
+                  <div className="flex justify-between items-center mb-4 border-b pb-2">
+                    <h4 className="text-lg font-semibold">Adressen pro Rolle</h4>
 
-    {/* Aktuelle Rolle anzeigen */}
-    {(() => {
-      const roleIndex = currentRoleIndex || 0;
-      const roleCode = formData.selectedRoles[roleIndex];
-      const role = availableRoles.find(r => r.code === roleCode);
-      
-      return (
-        <div className="p-4 border border-gray-200 rounded-lg">
-          <h5 className="font-medium mb-3 text-blue-700 text-center">
-            {role?.label} - Adresse
-          </h5>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Gleiche Adressfelder wie vorher */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Straße</label>
-              <input
-                type="text"
-                placeholder="z.B. Hauptstraße"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hausnummer</label>
-              <input
-                type="text"
-                placeholder="123a"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">PLZ</label>
-              <input
-                type="text"
-                placeholder="12345"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ort</label>
-              <input
-                type="text"
-                placeholder="Berlin"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Land</label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="Deutschland">Deutschland</option>
-                <option value="Österreich">Österreich</option>
-                <option value="Schweiz">Schweiz</option>
-              </select>
-            </div>
-            
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail für diese Rolle</label>
-              <input
-                type="email"
-                defaultValue={formData.primaryEmail}
-                placeholder="rolle@firma.de"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-              <input
-                type="tel"
-                defaultValue={formData.primaryPhone}
-                placeholder="+49 123 456789"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-      );
-    })()}
-  </div>
-)}
-              
+                    {/* Navigation Arrows */}
+                    {formData.selectedRoles.length > 1 && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-500">
+                          {(currentRoleIndex || 0) + 1} von {formData.selectedRoles.length}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentRoleIndex(Math.max(0, (currentRoleIndex || 0) - 1))}
+                          disabled={currentRoleIndex === 0}
+                          className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentRoleIndex(Math.min(formData.selectedRoles.length - 1, (currentRoleIndex || 0) + 1))}
+                          disabled={currentRoleIndex >= formData.selectedRoles.length - 1}
+                          className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Aktuelle Rolle anzeigen */}
+                  {(() => {
+                    const roleIndex = currentRoleIndex || 0;
+                    const roleCode = formData.selectedRoles[roleIndex];
+                    const role = availableRoles.find(r => r.code === roleCode);
+                    const address = formData.roleAddresses?.[roleCode] || getEmptyAddress();
+
+                    return (
+                      <div className="p-4 border border-gray-200 rounded-lg">
+                        <h5 className="font-medium mb-3 text-blue-700 text-center">
+                          {role?.label} - Adresse
+                        </h5>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {/* Gleiche Adressfelder wie vorher */}
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Straße</label>
+                            <input
+                              type="text"
+                              value={address.street}
+                              onChange={(e) => handleAddressChange(roleCode, 'street', e.target.value)}
+                              placeholder="z.B. Hauptstraße"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Hausnummer</label>
+                            <input
+                              type="text"
+                              value={address.houseNumber}
+                              onChange={(e) => handleAddressChange(roleCode, 'houseNumber', e.target.value)}
+                              placeholder="123a"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">PLZ</label>
+                            <input
+                              type="text"
+                              value={address.postalCode}
+                              onChange={(e) => handleAddressChange(roleCode, 'postalCode', e.target.value)}
+                              placeholder="12345"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Ort</label>
+                            <input
+                              type="text"
+                              value={address.city}
+                              onChange={(e) => handleAddressChange(roleCode, 'city', e.target.value)}
+                              placeholder="Berlin"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Land</label>
+                            <select
+                              value={address.country}
+                              onChange={(e) => handleAddressChange(roleCode, 'country', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="Deutschland">Deutschland</option>
+                              <option value="Österreich">Österreich</option>
+                              <option value="Schweiz">Schweiz</option>
+                            </select>
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail für diese Rolle</label>
+                            <input
+                              type="email"
+                              value={address.email}
+                              onChange={(e) => handleAddressChange(roleCode, 'email', e.target.value)}
+                              placeholder="rolle@firma.de"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                            <input
+                              type="tel"
+                              value={address.phone}
+                              onChange={(e) => handleAddressChange(roleCode, 'phone', e.target.value)}
+                              placeholder="+49 123 456789"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
             </div>
 
             {/* Buttons */}
@@ -443,10 +549,10 @@ const toggleRole = (roleCode) => {
                 disabled={isSubmitting}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center"
               >
-                {isSubmitting ? 
-  (isEditing ? 'Speichere...' : 'Erstelle...') : 
-  (isEditing ? 'Speichern' : 'Erstellen')
-}
+                {isSubmitting ?
+                  (isEditing ? 'Speichere...' : 'Erstelle...') :
+                  (isEditing ? 'Speichern' : 'Erstellen')
+                }
               </button>
             </div>
           </form>

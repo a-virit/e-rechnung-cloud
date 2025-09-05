@@ -27,6 +27,31 @@ class BusinessPartnerService {
     throw error;
   }
 
+  async deactivate(businessPartnerNumber) {
+    try {
+      const response = await fetch(`${this.baseURL}/api/business-partners?businessPartnerNumber=${businessPartnerNumber}&action=deactivate`, {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ action: 'deactivate' })
+      });
+
+      if (!response.ok) {
+        this.handleAuthError(new Error('Failed to deactivate business partner'), response);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Fehler beim Deaktivieren des Business Partners');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error deactivating business partner:', error);
+      throw new Error('Fehler beim Deaktivieren des Business Partners: ' + error.message);
+    }
+  }
+
   async getAll() {
     try {
       const response = await fetch(`${this.baseURL}/api/business-partners`, {

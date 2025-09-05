@@ -292,26 +292,6 @@ export function AppProvider({ children }) {
       dispatch({ type: ActionTypes.SET_LOADING, payload: false });
     },
 
-    saveBusinessPartner: async (partnerData, isEdit = false) => {
-      dispatch({ type: ActionTypes.SET_SUBMITTING, payload: true });
-      try {
-        if (isEdit) {
-          // TODO: Update implementieren später
-          // await businessPartnerService.update(partnerData.businessPartnerNumber, partnerData);
-        } else {
-          await businessPartnerService.create(partnerData);
-        }
-        await loadBusinessPartners();
-        const message = isEdit ? 'Business Partner erfolgreich aktualisiert!' : 'Business Partner erfolgreich erstellt!';
-        return { success: true, message };
-      } catch (error) {
-        handleError(error, isEdit ? 'Business Partner aktualisieren' : 'Business Partner erstellen');
-        return { success: false, error: error.message };
-      } finally {
-        dispatch({ type: ActionTypes.SET_SUBMITTING, payload: false });
-      }
-    },
-
     editBusinessPartner: (partner) => {
       dispatch({ type: ActionTypes.SET_EDITING_BUSINESS_PARTNER, payload: partner });
       if (partner) {
@@ -332,6 +312,20 @@ export function AppProvider({ children }) {
         return { success: true, message };
       } catch (error) {
         handleError(error, isEdit ? 'Business Partner aktualisieren' : 'Business Partner erstellen');
+        return { success: false, error: error.message };
+      } finally {
+        dispatch({ type: ActionTypes.SET_SUBMITTING, payload: false });
+      }
+    },
+
+    deactivateBusinessPartner: async (businessPartnerNumber) => {
+      dispatch({ type: ActionTypes.SET_SUBMITTING, payload: true });
+      try {
+        await businessPartnerService.deactivate(businessPartnerNumber);
+        await loadBusinessPartners();
+        return { success: true, message: 'Business Partner deaktiviert' };
+      } catch (error) {
+        handleError(error, 'Business Partner deaktivieren');
         return { success: false, error: error.message };
       } finally {
         dispatch({ type: ActionTypes.SET_SUBMITTING, payload: false });

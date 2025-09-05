@@ -59,7 +59,7 @@ export default async function handler(req, res) {
 
     // POST - Neuen Business Partner erstellen
     if (req.method === 'POST') {
-      const { name, primaryEmail, primaryPhone, externalBusinessPartnerNumber, selectedRoles } = req.body;
+      const { name, primaryEmail, primaryPhone, externalBusinessPartnerNumber, selectedRoles, roleAddresses } = req.body;
 
       if (!name || !primaryEmail) {
         return res.status(400).json({
@@ -85,29 +85,28 @@ export default async function handler(req, res) {
 
       const businessPartnerNumber = generatePartnerNumber(currentPartners);
 
-      // Rollen basierend auf Auswahl erstellen
-      const createRolesFromSelection = (selectedRoles, primaryEmail, primaryPhone) => {
+      const createRolesFromSelection = (selectedRoles, roleAddresses) => {
         const roleMap = {
           'CUSTOMER': 'Kunde',
           'SUPPLIER': 'Lieferant',
           'BILLING': 'Rechnungsempfänger',
-          'DELIVERY': 'Lieferadresse'
+          'DELIVERY': 'Lieferadresse',
+          'PARTNER': 'Geschäftspartner',
+          'CONTRACTOR': 'Auftragnehmer'
         };
 
         return selectedRoles.map(roleCode => ({
           roleCode,
           roleLabel: roleMap[roleCode] || roleCode,
           status: 'ACTIVE',
-          address: {
+          address: roleAddresses[roleCode] || {
             street: '',
             houseNumber: '',
-            addressLine2: '',
             postalCode: '',
             city: '',
             country: 'Deutschland',
-            poBox: '',
-            email: primaryEmail, // Übernimmt primäre E-Mail als Standard
-            phone: primaryPhone || ''
+            email: '',
+            phone: ''
           }
         }));
       };
@@ -120,7 +119,7 @@ export default async function handler(req, res) {
         primaryEmail,
         primaryPhone: primaryPhone || '',
         // Rollen basierend auf Auswahl
-        roles: createRolesFromSelection(selectedRoles || ['CUSTOMER'], primaryEmail, primaryPhone),
+        roles: createRolesFromSelection(selectedRoles || ['CUSTOMER'], roleAddresses || {}),
 
         contacts: [], // Leer starten, später erweitern
         companyId: 'default',
@@ -139,22 +138,14 @@ export default async function handler(req, res) {
       });
     }
 
-    // PUT - Business Partner aktualisieren
+    // PUT - Business Partner aktualisieren oder deaktivieren
     if (req.method === 'PUT') {
-      const { businessPartnerNumber } = req.query;
-      const { name, primaryEmail, primaryPhone, externalBusinessPartnerNumber, selectedRoles } = req.body;
+      const { businessPartnerNumber, action } = req.query;
 
       if (!businessPartnerNumber) {
         return res.status(400).json({
           success: false,
           error: 'Business Partner Nummer ist erforderlich'
-        });
-      }
-
-      if (!name || !primaryEmail) {
-        return res.status(400).json({
-          success: false,
-          error: 'Name und primäre E-Mail sind erforderlich'
         });
       }
 
@@ -168,20 +159,49 @@ export default async function handler(req, res) {
         });
       }
 
+      // Deaktivierung
+      if (action === 'deactivate') {
+        currentPartners[partnerIndex] = {
+          ...currentPartners[partnerIndex],
+          status: 'INACTIVE',
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'current-user'
+        };
+
+        await kv.set(BUSINESS_PARTNERS_KEY, currentPartners);
+
+        return res.status(200).json({
+          success: true,
+          data: currentPartners[partnerIndex]
+        });
+      }
+
+      // Normale Aktualisierung
+      const { name, primaryEmail, primaryPhone, externalBusinessPartnerNumber, selectedRoles, roleAddresses } = req.body;
+
+      if (!name || !primaryEmail) {
+        return res.status(400).json({
+          success: false,
+          error: 'Name und primäre E-Mail sind erforderlich'
+        });
+      }
+
       // Rollen aktualisieren
-      const createRolesFromSelection = (selectedRoles, primaryEmail, primaryPhone) => {
+      const createRolesFromSelection = (selectedRoles, roleAddresses) => {
         const roleMap = {
           'CUSTOMER': 'Kunde',
           'SUPPLIER': 'Lieferant',
           'BILLING': 'Rechnungsempfänger',
-          'DELIVERY': 'Lieferadresse'
+          'DELIVERY': 'Lieferadresse',
+          'PARTNER': 'Geschäftspartner',
+          'CONTRACTOR': 'Auftragnehmer'
         };
 
         return selectedRoles.map(roleCode => ({
           roleCode,
           roleLabel: roleMap[roleCode] || roleCode,
           status: 'ACTIVE',
-          address: {
+          address: roleAddresses[roleCode] || {
             street: '',
             houseNumber: '',
             addressLine2: '',
@@ -189,7 +209,7 @@ export default async function handler(req, res) {
             city: '',
             country: 'Deutschland',
             poBox: '',
-            email: primaryEmail,
+            email: primaryEmail || '',
             phone: primaryPhone || ''
           }
         }));
@@ -202,7 +222,7 @@ export default async function handler(req, res) {
         primaryEmail,
         primaryPhone: primaryPhone || '',
         externalBusinessPartnerNumber: externalBusinessPartnerNumber || '',
-        roles: createRolesFromSelection(selectedRoles || ['CUSTOMER'], primaryEmail, primaryPhone),
+        roles: createRolesFromSelection(selectedRoles || ['CUSTOMER'], roleAddresses || {}),
         updatedAt: new Date().toISOString(),
         updatedBy: 'current-user'
       };
