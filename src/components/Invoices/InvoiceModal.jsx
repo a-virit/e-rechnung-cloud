@@ -25,94 +25,90 @@ function getFormatInfo(format) {
   return formatDetails[format] || formatDetails['XRechnung'];
 }
 
-// Format-Auswahl-Sektion - AUSGELAGERT als separate Komponente
+// Format-Auswahl-Sektion - KOMPAKTE horizontale Version
 const FormatSelectionSection = ({ formData, setFormData }) => {
   const formatOptions = [
     {
       value: 'XRechnung',
-      label: 'XRechnung 3.0',
-      description: 'Standard für deutsche B2B E-Rechnungen',
+      label: 'XRechnung 3.0', 
+      description: 'Standard für Deutschland',
       icon: '🇩🇪',
       recommended: true
     },
     {
       value: 'ZUGFeRD',
       label: 'ZUGFeRD 2.2',
-      description: 'Hybridformat für Deutschland/Europa',
+      description: 'Hybridformat',
       icon: '📄',
       recommended: false
     },
     {
       value: 'Both',
       label: 'Beide Formate',
-      description: 'XRechnung + ZUGFeRD als separate Anhänge',
+      description: 'XRechnung + ZUGFeRD',
       icon: '📊',
       recommended: false
     }
   ];
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          E-Rechnungsformat auswählen
-        </label>
-        <div className="grid grid-cols-1 gap-3">
-          {formatOptions.map((option) => (
-            <div
-              key={option.value}
-              className={`relative rounded-lg border-2 cursor-pointer transition-all ${
-                formData.format === option.value
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
-              }`}
-              onClick={() => setFormData(prev => ({ ...prev, format: option.value }))}
-            >
-              <div className="p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center">
-                    <span className="text-lg mr-2">{option.icon}</span>
-                    <div className="text-sm font-medium text-gray-900">
-                      {option.label}
-                    </div>
-                  </div>
-                  {option.recommended && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Empfohlen
-                    </span>
-                  )}
-                  {/* Radio Button */}
-                  <input
-                    type="radio"
-                    name="format"
-                    value={option.value}
-                    checked={formData.format === option.value}
-                    onChange={(e) => setFormData(prev => ({ ...prev, format: e.target.value }))}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                </div>
-                <p className="text-xs text-gray-600">{option.description}</p>
+    <div className="space-y-3">
+      <label className="block text-sm font-medium text-gray-700">
+        E-Rechnungsformat auswählen
+      </label>
+      
+      {/* Horizontale Format-Cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {formatOptions.map((option) => (
+          <div
+            key={option.value}
+            className={`relative rounded-lg border-2 cursor-pointer transition-all ${
+              formData.format === option.value
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
+            onClick={() => setFormData(prev => ({ ...prev, format: option.value }))}
+          >
+            <div className="p-3 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <span className="text-2xl">{option.icon}</span>
+                {option.recommended && (
+                  <span className="absolute -top-2 -right-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Empfohlen
+                  </span>
+                )}
               </div>
+              <div className="text-sm font-medium text-gray-900 mb-1">
+                {option.label}
+              </div>
+              <p className="text-xs text-gray-600 mb-2">{option.description}</p>
+              
+              <input
+                type="radio"
+                name="format"
+                value={option.value}
+                checked={formData.format === option.value}
+                onChange={(e) => setFormData(prev => ({ ...prev, format: e.target.value }))}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+              />
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
-      {/* Format-Info */}
+      {/* Kompakte Format-Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800">
+        <div className="flex items-center">
+          <svg className="h-4 w-4 text-blue-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+          <div>
+            <span className="text-sm font-medium text-blue-800">
               {getFormatInfo(formData.format).title}
-            </h3>
-            <div className="mt-1 text-sm text-blue-700">
-              <p>{getFormatInfo(formData.format).details}</p>
-            </div>
+            </span>
+            <span className="text-sm text-blue-700 ml-2">
+              - {getFormatInfo(formData.format).details}
+            </span>
           </div>
         </div>
       </div>

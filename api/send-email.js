@@ -1,5 +1,14 @@
-// api/send-email.js (KORRIGIERT für Business Partner)
+// api/send-email.js - Produktionsreife Version mit direkten Funktionsaufrufen
 import { kv } from '@vercel/kv';
+
+// Import der Funktionen aus generate-formats.js
+import { 
+  generateFormats,
+  generateXRechnung,
+  generateZUGFeRD,
+  getBusinessPartnerInfo,
+  escapeXML
+} from './generate-formats.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -55,7 +64,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // KORRIGIERT: Business Partner E-Mail-Validierung
+    // Business Partner E-Mail-Validierung
     const recipientEmail = getRecipientEmail(invoice);
     if (!recipientEmail) {
       return res.status(400).json({
@@ -89,9 +98,10 @@ export default async function handler(req, res) {
         recipientName: getRecipientName(invoice),
         sender: config.email.senderEmail,
         attachments: emailResult.attachments || 0,
+        attachmentFiles: emailResult.attachmentFiles || [],
         usedRole: invoice.businessPartner?.selectedRole || 'CUSTOMER'
       },
-      message: 'E-Rechnung erfolgreich versendet'
+      message: `E-Rechnung erfolgreich versendet mit ${emailResult.attachments || 0} Anhang(en)`
     });
 
   } catch (error) {
@@ -113,7 +123,7 @@ export default async function handler(req, res) {
   }
 }
 
-// KORRIGIERT: Business Partner Empfänger-E-Mail ermitteln
+// Business Partner Empfänger-E-Mail ermitteln
 function getRecipientEmail(invoice) {
   // Business Partner E-Mail verwenden (neue Struktur)
   if (invoice.businessPartner?.email) {
@@ -128,7 +138,7 @@ function getRecipientEmail(invoice) {
   return null;
 }
 
-// KORRIGIERT: Business Partner Empfänger-Name ermitteln  
+// Business Partner Empfänger-Name ermitteln  
 function getRecipientName(invoice) {
   return invoice.businessPartner?.name || invoice.customer?.name || 'Kunde';
 }
@@ -140,49 +150,77 @@ async function sendEmailViaProvider(invoice, config) {
   // E-Mail-Template verarbeiten
   const emailContent = processEmailTemplate(invoice, config);
 
-  // Anhänge vorbereiten
+  // Anhänge direkt generieren (ohne HTTP-Aufruf)
   const attachments = [];
 
-  // XRechnung XML anhängen
   try {
-    const formatResponse = await fetch(`${baseUrl}/api/generate-formats`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        invoiceId: invoice.id,
-        format: 'XRechnung' // oder 'ZUGFeRD' oder 'Both'
-      })
-    })
-
-    if (xmlResponse.ok) {
-      const xmlData = await xmlResponse.json();
+    console.log('Generiere E-Rechnung-Formate direkt...');
+    
+    // Nutze die importierte generateFormats Funktion
+    const requestedFormat = invoice.format || 'XRechnung';
+    const formatResult = await generateFormats(invoice, config, requestedFormat, {});
+    
+    console.log('Format-Generierung erfolgreich:', Object.keys(formatResult.formats));
+    
+    // XRechnung anhängen falls generiert
+    if (formatResult.formats.xrechnung) {
+      const xr = formatResult.formats.xrechnung;
       attachments.push({
-        filename: xmlData.data.fileName,
-        content: Buffer.from(xmlData.data.xml).toString('base64'),
-        type: 'application/xml'
+        filename: xr.fileName,
+        content: Buffer.from(xr.xml).toString('base64'),
+        type: xr.mimeType
       });
+      console.log(`XRechnung Anhang hinzugefügt: ${xr.fileName} (${xr.size} bytes)`);
     }
+    
+    // ZUGFeRD anhängen falls generiert
+    if (formatResult.formats.zugferd) {
+      const zf = formatResult.formats.zugferd;
+      attachments.push({
+        filename: zf.fileName,
+        content: Buffer.from(zf.xml).toString('base64'),
+        type: zf.mimeType
+      });
+      console.log(`ZUGFeRD Anhang hinzugefügt: ${zf.fileName} (${zf.size} bytes)`);
+    }
+    
+    // Sicherstellen, dass mindestens ein Anhang generiert wurde
+    if (attachments.length === 0) {
+      throw new Error('Keine E-Rechnung-Anhänge generiert');
+    }
+    
+    console.log(`${attachments.length} Anhang(e) erfolgreich erstellt`);
+    
   } catch (error) {
-    console.error('XRechnung attachment error:', error);
+    console.error('KRITISCHER FEHLER bei Anhang-Generierung:', error);
+    throw new Error(`Anhang konnte nicht erstellt werden: ${error.message}`);
   }
 
   // E-Mail über gewählten Provider versenden
+  let emailResult;
   switch (emailProvider) {
     case 'sendgrid':
-      return await sendViaSendGrid(invoice, config, emailContent, attachments);
+      emailResult = await sendViaSendGrid(invoice, config, emailContent, attachments);
+      break;
 
     case 'mailgun':
-      return await sendViaMailgun(invoice, config, emailContent, attachments);
+      emailResult = await sendViaMailgun(invoice, config, emailContent, attachments);
+      break;
 
     case 'postmark':
-      return await sendViaPostmark(invoice, config, emailContent, attachments);
+      emailResult = await sendViaPostmark(invoice, config, emailContent, attachments);
+      break;
 
     default:
       throw new Error(`Unbekannter E-Mail-Provider: ${emailProvider}`);
   }
+
+  // Anhang-Info zu Result hinzufügen
+  emailResult.attachmentFiles = attachments.map(a => a.filename);
+  return emailResult;
 }
 
-// SendGrid Integration - KORRIGIERT für Business Partner
+// SendGrid Integration
 async function sendViaSendGrid(invoice, config, emailContent, attachments) {
   const API_KEY = process.env.SENDGRID_API_KEY;
 
@@ -214,7 +252,7 @@ async function sendViaSendGrid(invoice, config, emailContent, attachments) {
     ]
   };
 
-  // Anhänge nur hinzufügen wenn vorhanden (SendGrid-Requirement)
+  // Anhänge nur hinzufügen wenn vorhanden
   if (attachments.length > 0) {
     emailData.attachments = attachments.map(att => ({
       content: att.content,
@@ -246,7 +284,7 @@ async function sendViaSendGrid(invoice, config, emailContent, attachments) {
   };
 }
 
-// Mailgun Integration - KORRIGIERT für Business Partner
+// Mailgun Integration
 async function sendViaMailgun(invoice, config, emailContent, attachments) {
   const API_KEY = process.env.MAILGUN_API_KEY;
   const DOMAIN = process.env.MAILGUN_DOMAIN;
@@ -292,7 +330,7 @@ async function sendViaMailgun(invoice, config, emailContent, attachments) {
   };
 }
 
-// Postmark Integration - KORRIGIERT für Business Partner
+// Postmark Integration
 async function sendViaPostmark(invoice, config, emailContent, attachments) {
   const API_KEY = process.env.POSTMARK_SERVER_TOKEN;
 
@@ -340,12 +378,10 @@ async function sendViaPostmark(invoice, config, emailContent, attachments) {
   };
 }
 
-// E-Mail-Template verarbeiten - KORRIGIERT für Business Partner
+// E-Mail-Template verarbeiten
 function processEmailTemplate(invoice, config) {
   const template = config.templates?.invoice || {};
   const companyName = config.company?.name || 'Ihr Unternehmen';
-
-  // KORRIGIERT: Business Partner Daten verwenden
   const customerName = getRecipientName(invoice);
   const selectedRole = invoice.businessPartner?.selectedRole || 'CUSTOMER';
 
@@ -357,7 +393,7 @@ function processEmailTemplate(invoice, config) {
     companyName: companyName,
     dueDate: formatDate(invoice.dueDate),
     date: formatDate(invoice.date),
-    selectedRole: selectedRole  // NEU: Rolle in E-Mail-Template verfügbar
+    selectedRole: selectedRole
   };
 
   // Template-Variablen ersetzen
@@ -380,7 +416,7 @@ function replaceVariables(template, variables) {
   return result;
 }
 
-// Standard E-Mail-Template - ERWEITERT für Business Partner
+// Standard E-Mail-Template
 function getDefaultEmailTemplate() {
   return `Sehr geehrte Damen und Herren,
 
@@ -392,7 +428,7 @@ Rechnungsdetails:
 - Fälligkeitsdatum: {{dueDate}}
 - Adress-Rolle: {{selectedRole}}
 
-Die Rechnung ist als strukturierte E-Rechnung (XRechnung) beigefügt und kann direkt in Ihr System importiert werden.
+Die Rechnung ist als strukturierte E-Rechnung beigefügt und kann direkt in Ihr System importiert werden.
 
 Bei Fragen stehen wir Ihnen gerne zur Verfügung.
 

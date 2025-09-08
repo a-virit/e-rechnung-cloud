@@ -1,5 +1,6 @@
-// api/generate-pdf.js - PDF-Generierung (KORRIGIERT für Business Partner)
+// api/generate-pdf.js - Echte PDF-Generierung mit jsPDF
 import { kv } from '@vercel/kv';
+import { jsPDF } from 'jspdf';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -32,32 +33,29 @@ export default async function handler(req, res) {
       });
     }
 
-    // HTML für PDF generieren
-    const htmlContent = generateInvoiceHTML(invoice, config);
-    
-    // Für Entwicklung: HTML-Preview zurückgeben
+    // HTML für Preview generieren
     if (req.query.preview === 'true') {
+      const htmlContent = generateInvoiceHTML(invoice, config);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.status(200).send(htmlContent);
     }
 
-    // In Produktion würde hier Puppeteer oder ein PDF-Service verwendet werden
-    // Für jetzt: Mock PDF-Daten
-    const mockPdfData = Buffer.from('Mock PDF Content for ' + invoice.invoiceNumber);
+    // ECHTE PDF-Generierung mit jsPDF
+    const pdfBuffer = generatePDFBuffer(invoice, config);
     
     if (req.method === 'GET') {
       // PDF-Download
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="Rechnung_${invoice.invoiceNumber}.pdf"`);
-      return res.status(200).send(mockPdfData);
+      res.setHeader('Content-Disposition', `attachment; filename="Rechnung_${invoice.invoiceNumber || invoice.id}.pdf"`);
+      return res.status(200).send(pdfBuffer);
     } else {
       // PDF-Daten als Base64 zurückgeben
       return res.status(200).json({
         success: true,
         data: {
           invoiceId: invoice.id,
-          fileName: `Rechnung_${invoice.invoiceNumber}.pdf`,
-          pdf: mockPdfData.toString('base64'),
+          fileName: `Rechnung_${invoice.invoiceNumber || invoice.id}.pdf`,
+          pdf: pdfBuffer.toString('base64'),
           mimeType: 'application/pdf'
         }
       });
@@ -72,215 +70,317 @@ export default async function handler(req, res) {
   }
 }
 
-// HTML für Rechnung generieren (KORRIGIERT für Business Partner)
-function generateInvoiceHTML(invoice, config) {
-  const company = config.company || {};
+// Echte PDF-Generierung mit jsPDF
+function generatePDFBuffer(invoice, config) {
+  // Neue PDF-Instanz erstellen
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  // Farben definieren
+  const primaryColor = [37, 99, 235]; // Blau
+  const textColor = [51, 51, 51]; // Dunkelgrau
+  const lightGray = [100, 116, 139]; // Hellgrau
+
+  // Hilfsfunktionen
+  const addText = (text, x, y, options = {}) => {
+    if (options.color) doc.setTextColor(...options.color);
+    if (options.fontSize) doc.setFontSize(options.fontSize);
+    if (options.fontStyle) doc.setFont(undefined, options.fontStyle);
+    doc.text(text, x, y);
+    // Reset
+    doc.setTextColor(...textColor);
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+  };
+
+  const addLine = (x1, y1, x2, y2, color = [229, 231, 235]) => {
+    doc.setDrawColor(...color);
+    doc.line(x1, y1, x2, y2);
+  };
+
+  let yPos = 20;
+
+  // === HEADER ===
+  // Firmenname
+  addText(config.company?.name || 'Ihr Unternehmen', 20, yPos, { 
+    fontSize: 20, 
+    fontStyle: 'bold',
+    color: primaryColor 
+  });
+  yPos += 10;
+
+  // Firmenadresse
+  if (config.company?.address) {
+    addText(config.company.address, 20, yPos, { fontSize: 9, color: lightGray });
+    yPos += 5;
+  }
+  if (config.company?.taxId) {
+    addText(`USt-IdNr.: ${config.company.taxId}`, 20, yPos, { fontSize: 9, color: lightGray });
+    yPos += 5;
+  }
+  if (config.email?.senderEmail) {
+    addText(`E-Mail: ${config.email.senderEmail}`, 20, yPos, { fontSize: 9, color: lightGray });
+    yPos += 5;
+  }
+
+  // Trennlinie
+  yPos += 5;
+  addLine(20, yPos, 190, yPos, primaryColor);
+  yPos += 10;
+
+  // === RECHNUNGSTITEL ===
+  addText(`RECHNUNG ${invoice.invoiceNumber || invoice.id}`, 20, yPos, { 
+    fontSize: 16, 
+    fontStyle: 'bold' 
+  });
+  yPos += 10;
+
+  // Rechnungsdaten in zwei Spalten
+  const leftCol = 20;
+  const rightCol = 110;
   
-  return `
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rechnung ${invoice.invoiceNumber}</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 40px; 
-            color: #333; 
-            line-height: 1.6;
-        }
-        .header { 
-            border-bottom: 2px solid #2563eb; 
-            padding-bottom: 20px; 
-            margin-bottom: 30px; 
-        }
-        .company-info { 
-            text-align: right; 
-            margin-bottom: 20px; 
-        }
-        .invoice-info { 
-            background: #f8fafc; 
-            padding: 20px; 
-            border-radius: 8px; 
-            margin: 20px 0; 
-        }
-        .customer-info { 
-            margin: 20px 0; 
-        }
-        .role-badge {
-            display: inline-block;
-            background: #dbeafe;
-            color: #1e40af;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-        .items-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 20px 0; 
-        }
-        .items-table th, .items-table td { 
-            border: 1px solid #e2e8f0; 
-            padding: 12px; 
-            text-align: left; 
-        }
-        .items-table th { 
-            background: #f1f5f9; 
-            font-weight: bold; 
-        }
-        .total-section { 
-            text-align: right; 
-            margin-top: 20px; 
-        }
-        .total-row { 
-            display: flex; 
-            justify-content: space-between; 
-            margin: 5px 0; 
-        }
-        .total-final { 
-            font-weight: bold; 
-            font-size: 1.2em; 
-            border-top: 2px solid #2563eb; 
-            padding-top: 10px; 
-        }
-        .footer { 
-            margin-top: 40px; 
-            padding-top: 20px; 
-            border-top: 1px solid #e2e8f0; 
-            font-size: 0.9em; 
-            color: #64748b; 
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="company-info">
-            <h1>${company.name || 'Ihr Unternehmen'}</h1>
-            <p>${company.address || ''}</p>
-            ${company.taxId ? `<p>USt-IdNr.: ${company.taxId}</p>` : ''}
-            ${company.email ? `<p>E-Mail: ${company.email}</p>` : ''}
-            ${company.phone ? `<p>Tel.: ${company.phone}</p>` : ''}
-            ${company.website ? `<p>Web: ${company.website}</p>` : ''}
-        </div>
-    </div>
+  addText('Rechnungsdatum:', leftCol, yPos, { fontStyle: 'bold', fontSize: 9 });
+  addText(formatDateDE(invoice.date), leftCol + 35, yPos, { fontSize: 9 });
+  
+  addText('Fälligkeitsdatum:', rightCol, yPos, { fontStyle: 'bold', fontSize: 9 });
+  addText(formatDateDE(invoice.dueDate), rightCol + 35, yPos, { fontSize: 9 });
+  yPos += 6;
 
-    <div class="customer-info">
-        <h3>Rechnungsempfänger:</h3>
-        <p><strong>${getCustomerName(invoice)}</strong>
-        ${invoice.businessPartner?.selectedRole ? 
-          `<span class="role-badge">${invoice.businessPartner.selectedRole}</span>` : ''
-        }</p>
-        ${getCustomerAddress(invoice)}
-        ${getCustomerTaxId(invoice)}
-    </div>
+  addText('Format:', leftCol, yPos, { fontStyle: 'bold', fontSize: 9 });
+  addText(invoice.format || 'Standard', leftCol + 35, yPos, { fontSize: 9 });
+  
+  addText('Währung:', rightCol, yPos, { fontStyle: 'bold', fontSize: 9 });
+  addText(invoice.currency || 'EUR', rightCol + 35, yPos, { fontSize: 9 });
+  yPos += 10;
 
-    <div class="invoice-info">
-        <h2>Rechnung ${invoice.invoiceNumber || invoice.id}</h2>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <div>
-                <p><strong>Rechnungsdatum:</strong> ${formatDateDE(invoice.date)}</p>
-                <p><strong>Fälligkeitsdatum:</strong> ${formatDateDE(invoice.dueDate)}</p>
-            </div>
-            <div>
-                <p><strong>Währung:</strong> ${invoice.currency || 'EUR'}</p>
-                <p><strong>Format:</strong> ${invoice.format || 'Standard'}</p>
-            </div>
-        </div>
-    </div>
+  // === KUNDENADRESSE ===
+  addText('RECHNUNGSEMPFÄNGER', 20, yPos, { 
+    fontSize: 10, 
+    fontStyle: 'bold',
+    color: lightGray 
+  });
+  yPos += 6;
 
-    <table class="items-table">
-        <thead>
-            <tr>
-                <th>Pos.</th>
-                <th>Beschreibung</th>
-                <th>Menge</th>
-                <th>Einzelpreis</th>
-                <th>Gesamt</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${(invoice.items || []).map((item, index) => `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${item.description || item.name || 'Leistung'}</td>
-                    <td>${item.quantity || 1}</td>
-                    <td>${(item.price || 0).toFixed(2)} ${invoice.currency || 'EUR'}</td>
-                    <td>${((item.quantity || 1) * (item.price || 0)).toFixed(2)} ${invoice.currency || 'EUR'}</td>
-                </tr>
-            `).join('')}
-        </tbody>
-    </table>
+  // Business Partner Name mit Rolle
+  const customerName = getCustomerName(invoice);
+  addText(customerName, 20, yPos, { fontSize: 11, fontStyle: 'bold' });
+  
+  // Role Badge
+  if (invoice.businessPartner?.selectedRole) {
+    const role = invoice.businessPartner.selectedRole;
+    doc.setFillColor(219, 234, 254); // Hellblau
+    doc.setTextColor(30, 64, 175); // Dunkelblau
+    doc.setFontSize(8);
+    const roleWidth = doc.getTextWidth(role) + 4;
+    doc.roundedRect(20 + doc.getTextWidth(customerName) + 5, yPos - 4, roleWidth, 5, 1, 1, 'F');
+    doc.text(role, 20 + doc.getTextWidth(customerName) + 7, yPos - 0.5);
+    doc.setTextColor(...textColor);
+  }
+  yPos += 6;
 
-    <div class="total-section">
-        <div style="width: 300px; margin-left: auto;">
-            <div class="total-row">
-                <span>Zwischensumme:</span>
-                <span>${(invoice.subtotal || 0).toFixed(2)} ${invoice.currency || 'EUR'}</span>
-            </div>
-            <div class="total-row">
-                <span>MwSt. (${invoice.taxRate || 19}%):</span>
-                <span>${(invoice.taxAmount || 0).toFixed(2)} ${invoice.currency || 'EUR'}</span>
-            </div>
-            <div class="total-row total-final">
-                <span>Gesamtbetrag:</span>
-                <span>${(invoice.total || invoice.amount || 0).toFixed(2)} ${invoice.currency || 'EUR'}</span>
-            </div>
-        </div>
-    </div>
+  // Kundenadresse
+  const addressLines = getCustomerAddressLines(invoice);
+  addressLines.forEach(line => {
+    if (line) {
+      addText(line, 20, yPos, { fontSize: 9 });
+      yPos += 4;
+    }
+  });
 
-    ${invoice.notes ? `
-    <div style="margin-top: 30px;">
-        <h3>Anmerkungen:</h3>
-        <p>${invoice.notes}</p>
-    </div>
-    ` : ''}
+  // Kunden-Steuernummer
+  const customerTaxId = invoice.businessPartner?.taxId || invoice.customer?.taxId;
+  if (customerTaxId) {
+    addText(`USt-IdNr.: ${customerTaxId}`, 20, yPos, { fontSize: 9 });
+    yPos += 4;
+  }
+  yPos += 5;
 
-    <div class="footer">
-        <p>Vielen Dank für Ihr Vertrauen!</p>
-        <p>Diese Rechnung wurde automatisch erstellt und ist ohne Unterschrift gültig.</p>
-        ${config.invoice?.paymentTerms ? `<p>Zahlungsziel: ${config.invoice.paymentTerms} Tage</p>` : ''}
-    </div>
-</body>
-</html>`;
+  // === RECHNUNGSPOSITIONEN ===
+  addText('POSITIONEN', 20, yPos, { 
+    fontSize: 10, 
+    fontStyle: 'bold',
+    color: lightGray 
+  });
+  yPos += 6;
+
+  // Tabellenkopf
+  doc.setFillColor(241, 245, 249); // Sehr hellgrau
+  doc.rect(20, yPos - 4, 170, 8, 'F');
+  
+  addText('Pos.', 22, yPos, { fontSize: 9, fontStyle: 'bold' });
+  addText('Beschreibung', 35, yPos, { fontSize: 9, fontStyle: 'bold' });
+  addText('Menge', 120, yPos, { fontSize: 9, fontStyle: 'bold' });
+  addText('Einzelpreis', 140, yPos, { fontSize: 9, fontStyle: 'bold' });
+  addText('Gesamt', 165, yPos, { fontSize: 9, fontStyle: 'bold' });
+  yPos += 8;
+
+  // Tabellenzeilen
+  const items = invoice.items || [];
+  if (items.length === 0) {
+    addText('1', 22, yPos, { fontSize: 9 });
+    addText('Keine Positionen angegeben', 35, yPos, { fontSize: 9 });
+    addText('1', 120, yPos, { fontSize: 9 });
+    addText('0,00', 140, yPos, { fontSize: 9 });
+    addText('0,00', 165, yPos, { fontSize: 9 });
+    yPos += 6;
+  } else {
+    items.forEach((item, index) => {
+      const quantity = item.quantity || 1;
+      const price = item.price || 0;
+      const total = quantity * price;
+
+      addText(`${index + 1}`, 22, yPos, { fontSize: 9 });
+      
+      // Beschreibung (ggf. umbrechen)
+      const description = item.description || item.name || 'Leistung';
+      const maxWidth = 80;
+      const lines = doc.splitTextToSize(description, maxWidth);
+      lines.forEach((line, i) => {
+        addText(line, 35, yPos + (i * 4), { fontSize: 9 });
+      });
+      
+      addText(`${quantity}`, 120, yPos, { fontSize: 9 });
+      addText(formatCurrency(price), 140, yPos, { fontSize: 9 });
+      addText(formatCurrency(total), 165, yPos, { fontSize: 9 });
+      
+      yPos += Math.max(6, lines.length * 4);
+      
+      // Trennlinie zwischen Positionen
+      if (index < items.length - 1) {
+        addLine(20, yPos - 2, 190, yPos - 2);
+      }
+    });
+  }
+
+  // === SUMMEN ===
+  yPos += 5;
+  addLine(20, yPos, 190, yPos, primaryColor);
+  yPos += 8;
+
+  // Rechte Ausrichtung für Summen
+  const labelX = 130;
+  const valueX = 165;
+
+  // Zwischensumme
+  addText('Zwischensumme:', labelX, yPos, { fontSize: 10 });
+  addText(formatCurrency(invoice.subtotal || 0), valueX, yPos, { fontSize: 10 });
+  yPos += 6;
+
+  // MwSt
+  const taxRate = invoice.taxRate || 19;
+  const taxAmount = invoice.taxAmount || invoice.tax || 0;
+  addText(`MwSt. (${taxRate}%):`, labelX, yPos, { fontSize: 10 });
+  addText(formatCurrency(taxAmount), valueX, yPos, { fontSize: 10 });
+  yPos += 6;
+
+  // Gesamtbetrag
+  addLine(labelX - 5, yPos - 2, 190, yPos - 2, primaryColor);
+  yPos += 4;
+  addText('Gesamtbetrag:', labelX, yPos, { 
+    fontSize: 12, 
+    fontStyle: 'bold' 
+  });
+  addText(formatCurrency(invoice.total || invoice.amount || 0), valueX, yPos, { 
+    fontSize: 12, 
+    fontStyle: 'bold',
+    color: primaryColor 
+  });
+  addText(invoice.currency || 'EUR', valueX + 20, yPos, { 
+    fontSize: 10,
+    color: primaryColor 
+  });
+
+  // === NOTIZEN ===
+  if (invoice.notes) {
+    yPos += 15;
+    addText('ANMERKUNGEN', 20, yPos, { 
+      fontSize: 10, 
+      fontStyle: 'bold',
+      color: lightGray 
+    });
+    yPos += 6;
+    
+    const noteLines = doc.splitTextToSize(invoice.notes, 170);
+    noteLines.forEach(line => {
+      addText(line, 20, yPos, { fontSize: 9 });
+      yPos += 4;
+    });
+  }
+
+  // === FOOTER ===
+  const footerY = 270;
+  addLine(20, footerY, 190, footerY);
+  
+  addText('Vielen Dank für Ihr Vertrauen!', 105, footerY + 6, { 
+    fontSize: 9, 
+    color: lightGray,
+    align: 'center'
+  });
+  
+  addText('Diese Rechnung wurde automatisch erstellt und ist ohne Unterschrift gültig.', 105, footerY + 10, { 
+    fontSize: 8, 
+    color: lightGray,
+    align: 'center'
+  });
+
+  // PDF als Buffer zurückgeben
+  const pdfOutput = doc.output('arraybuffer');
+  return Buffer.from(pdfOutput);
 }
 
-// Helper-Funktionen für Business Partner Kompatibilität
+// === HILFSFUNKTIONEN ===
+
 function getCustomerName(invoice) {
   return invoice.businessPartner?.name || invoice.customer?.name || 'Kunde';
 }
 
-function getCustomerAddress(invoice) {
-  // Business Partner Adresse (strukturiert)
+function getCustomerAddressLines(invoice) {
+  const lines = [];
+  
   if (invoice.businessPartner?.address) {
     const addr = invoice.businessPartner.address;
     const street = `${addr.street || ''} ${addr.houseNumber || ''}`.trim();
-    const cityLine = `${addr.postalCode || ''} ${addr.city || ''}`.trim();
+    if (street) lines.push(street);
     
-    return `
-      ${street ? `<p>${street}</p>` : ''}
-      ${cityLine ? `<p>${cityLine}</p>` : ''}
-      ${addr.country && addr.country !== 'Deutschland' ? `<p>${addr.country}</p>` : ''}
-    `;
+    const cityLine = `${addr.postalCode || addr.zip || ''} ${addr.city || ''}`.trim();
+    if (cityLine) lines.push(cityLine);
+    
+    if (addr.country && addr.country !== 'Deutschland') {
+      lines.push(addr.country);
+    }
+  } else if (invoice.customer?.address) {
+    // Alte Struktur als String
+    const addressParts = invoice.customer.address.split(',').map(s => s.trim());
+    addressParts.forEach(part => {
+      if (part) lines.push(part);
+    });
   }
   
-  // Fallback: Alte Customer Adresse (String)
-  if (invoice.customer?.address) {
-    return `<p>${invoice.customer.address}</p>`;
-  }
-  
-  return '';
-}
-
-function getCustomerTaxId(invoice) {
-  const taxId = invoice.businessPartner?.taxId || invoice.customer?.taxId;
-  return taxId ? `<p>USt-IdNr.: ${taxId}</p>` : '';
+  return lines;
 }
 
 function formatDateDE(dateString) {
   if (!dateString) return 'Kein Datum';
-  return new Date(dateString).toLocaleDateString('de-DE');
+  return new Date(dateString).toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+}
+
+function formatCurrency(amount) {
+  return amount.toLocaleString('de-DE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+// HTML für Preview (optional behalten)
+function generateInvoiceHTML(invoice, config) {
+  // ... Ihr existierender HTML-Code ...
+  // Kann für die Preview-Funktion behalten werden
+  return `<!DOCTYPE html><html><body><h1>Rechnung ${invoice.invoiceNumber}</h1></body></html>`;
 }

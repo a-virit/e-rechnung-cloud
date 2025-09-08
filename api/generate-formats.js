@@ -8,6 +8,7 @@ const SUPPORTED_FORMATS = {
   BOTH: 'Both'
 };
 
+// Standard API Handler für HTTP-Aufrufe
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -65,8 +66,8 @@ export default async function handler(req, res) {
   }
 }
 
-// Multi-Format-Generierung
-async function generateFormats(invoice, config, requestedFormat, options) {
+// Multi-Format-Generierung - EXPORTIERT für direkte Nutzung
+export async function generateFormats(invoice, config, requestedFormat, options) {
   const results = {
     invoiceId: invoice.id,
     formats: {},
@@ -98,8 +99,8 @@ async function generateFormats(invoice, config, requestedFormat, options) {
   return results;
 }
 
-// XRechnung 3.0 Generierung (Business Partner optimiert)
-async function generateXRechnung(invoice, config, options) {
+// XRechnung 3.0 Generierung - EXPORTIERT für direkte Nutzung
+export async function generateXRechnung(invoice, config, options) {
   const companyInfo = config.company || {};
   const customerData = extractCustomerData(invoice);
   
@@ -139,7 +140,7 @@ async function generateXRechnung(invoice, config, options) {
         <cbc:RegistrationName>${escapeXML(companyInfo.name || 'Muster Unternehmen GmbH')}</cbc:RegistrationName>
       </cac:PartyLegalEntity>
       <cac:Contact>
-        <cbc:ElectronicMail>${escapeXML(companyInfo.email || 'info@example.com')}</cbc:ElectronicMail>
+        <cbc:ElectronicMail>${escapeXML(config.email?.senderEmail || companyInfo.email || 'info@example.com')}</cbc:ElectronicMail>
       </cac:Contact>
     </cac:Party>
   </cac:AccountingSupplierParty>
@@ -176,10 +177,10 @@ async function generateXRechnung(invoice, config, options) {
   
   <!-- Steuerinformationen -->
   <cac:TaxTotal>
-    <cbc:TaxAmount currencyID="${invoice.currency || 'EUR'}">${(invoice.taxAmount || 0).toFixed(2)}</cbc:TaxAmount>
+    <cbc:TaxAmount currencyID="${invoice.currency || 'EUR'}">${(invoice.taxAmount || invoice.tax || 0).toFixed(2)}</cbc:TaxAmount>
     <cac:TaxSubtotal>
       <cbc:TaxableAmount currencyID="${invoice.currency || 'EUR'}">${(invoice.subtotal || 0).toFixed(2)}</cbc:TaxableAmount>
-      <cbc:TaxAmount currencyID="${invoice.currency || 'EUR'}">${(invoice.taxAmount || 0).toFixed(2)}</cbc:TaxAmount>
+      <cbc:TaxAmount currencyID="${invoice.currency || 'EUR'}">${(invoice.taxAmount || invoice.tax || 0).toFixed(2)}</cbc:TaxAmount>
       <cac:TaxCategory>
         <cbc:ID>S</cbc:ID>
         <cbc:Percent>${invoice.taxRate || 19}</cbc:Percent>
@@ -214,12 +215,11 @@ async function generateXRechnung(invoice, config, options) {
   };
 }
 
-// ZUGFeRD 2.2 Generierung
-async function generateZUGFeRD(invoice, config, options) {
+// ZUGFeRD 2.2 Generierung - EXPORTIERT für direkte Nutzung
+export async function generateZUGFeRD(invoice, config, options) {
   const companyInfo = config.company || {};
   const customerData = extractCustomerData(invoice);
   
-  // ZUGFeRD basiert auf UBL, aber mit erweiterten Metadaten
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rsm:CrossIndustryInvoice 
   xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
@@ -295,7 +295,7 @@ async function generateZUGFeRD(invoice, config, options) {
       
       <!-- Steuern -->
       <ram:ApplicableTradeTax>
-        <ram:CalculatedAmount>${(invoice.taxAmount || 0).toFixed(2)}</ram:CalculatedAmount>
+        <ram:CalculatedAmount>${(invoice.taxAmount || invoice.tax || 0).toFixed(2)}</ram:CalculatedAmount>
         <ram:TypeCode>VAT</ram:TypeCode>
         <ram:CategoryCode>S</ram:CategoryCode>
         <ram:RateApplicablePercent>${invoice.taxRate || 19}</ram:RateApplicablePercent>
@@ -306,7 +306,7 @@ async function generateZUGFeRD(invoice, config, options) {
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         <ram:LineTotalAmount>${(invoice.subtotal || 0).toFixed(2)}</ram:LineTotalAmount>
         <ram:TaxBasisTotalAmount>${(invoice.subtotal || 0).toFixed(2)}</ram:TaxBasisTotalAmount>
-        <ram:TaxTotalAmount currencyID="${invoice.currency || 'EUR'}">${(invoice.taxAmount || 0).toFixed(2)}</ram:TaxTotalAmount>
+        <ram:TaxTotalAmount currencyID="${invoice.currency || 'EUR'}">${(invoice.taxAmount || invoice.tax || 0).toFixed(2)}</ram:TaxTotalAmount>
         <ram:GrandTotalAmount>${(invoice.total || 0).toFixed(2)}</ram:GrandTotalAmount>
         <ram:DuePayableAmount>${(invoice.total || 0).toFixed(2)}</ram:DuePayableAmount>
       </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
@@ -325,8 +325,8 @@ async function generateZUGFeRD(invoice, config, options) {
   };
 }
 
-// Business Partner Daten extrahieren (mit Customer-Fallback)
-function extractCustomerData(invoice) {
+// Business Partner Daten extrahieren - EXPORTIERT
+export function extractCustomerData(invoice) {
   // Business Partner Daten verwenden (neue Struktur)
   if (invoice.businessPartner) {
     const bp = invoice.businessPartner;
@@ -339,7 +339,7 @@ function extractCustomerData(invoice) {
       street: addr.street || '',
       houseNumber: addr.houseNumber || '',
       city: addr.city || '',
-      postalCode: addr.postalCode || '',
+      postalCode: addr.postalCode || addr.zip || '',
       country: addr.country || 'Deutschland',
       countryCode: getCountryCode(addr.country || 'Deutschland'),
       selectedRole: bp.selectedRole || 'CUSTOMER'
@@ -377,13 +377,13 @@ function extractCustomerData(invoice) {
   };
 }
 
-// Business Partner Info für Metadata
-function getBusinessPartnerInfo(invoice) {
+// Business Partner Info für Metadata - EXPORTIERT
+export function getBusinessPartnerInfo(invoice) {
   if (invoice.businessPartner) {
     return {
       type: 'BusinessPartner',
       name: invoice.businessPartner.name,
-      role: invoice.businessPartner.selectedRole,
+      role: invoice.businessPartner.selectedRole || 'CUSTOMER',
       email: invoice.businessPartner.email
     };
   }
@@ -543,7 +543,8 @@ function formatDateZUGFeRD(dateString) {
   return dateString.replace(/-/g, '');
 }
 
-function escapeXML(text) {
+// XML Escape Funktion - EXPORTIERT
+export function escapeXML(text) {
   if (!text) return '';
   return text.toString()
     .replace(/&/g, '&amp;')
