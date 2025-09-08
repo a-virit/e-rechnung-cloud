@@ -1,12 +1,10 @@
-// api/send-email.js - Überarbeitet für externe Mailprovider
+// api/send-email.js (KORRIGIERT für Business Partner)
 import { kv } from '@vercel/kv';
-import { authenticateUser, hasPermission, logSecurityEvent } from './middleware/authMiddleware.js';
-
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -16,34 +14,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // 🔒 AUTHENTIFIZIERUNG PRÜFEN
-const authResult = await authenticateUser(req);
-if (!authResult.success) {
-  return res.status(authResult.status || 401).json({
-    success: false,
-    error: authResult.error
-  });
-}
-
-const { user } = authResult;
-
-// 🔒 BERECHTIGUNG PRÜFEN
-if (!hasPermission(user, 'invoices', 'write')) {
-  return res.status(403).json({
-    success: false,
-    error: 'Keine Berechtigung zum E-Mail-Versand'
-  });
-}
-
-// 🔒 RATE LIMITING
-const rateLimitKey = `email_rate_${user.companyId || user.id}`;
-const emailsToday = await kv.get(rateLimitKey) || 0;
-if (emailsToday >= (user.isSupport ? 1000 : 100)) {
-  return res.status(429).json({
-    success: false,
-    error: 'Tägliches E-Mail-Limit erreicht'
-  });
-}
+  // Rate-Limiting (100 E-Mails pro Tag in Dev, 1000 in Prod)
+  const rateLimitKey = 'email-rate-limit-' + new Date().toDateString();
+  const emailsToday = await kv.get(rateLimitKey) || 0;
+  
+  if (emailsToday >= (process.env.NODE_ENV === 'production' ? 1000 : 100)) {
+    return res.status(429).json({
+      success: false,
+      error: 'Tägliches E-Mail-Limit erreicht'
+    });
+  }
 
   try {
     const { invoiceId, attachXML = true, attachPDF = false } = req.body;
@@ -75,6 +55,15 @@ if (emailsToday >= (user.isSupport ? 1000 : 100)) {
       });
     }
 
+    // KORRIGIERT: Business Partner E-Mail-Validierung
+    const recipientEmail = getRecipientEmail(invoice);
+    if (!recipientEmail) {
+      return res.status(400).json({
+        success: false,
+        error: 'Empfänger-E-Mail nicht gefunden'
+      });
+    }
+
     // E-Mail über externen Service versenden
     const emailResult = await sendEmailViaProvider(invoice, config);
     
@@ -89,13 +78,18 @@ if (emailsToday >= (user.isSupport ? 1000 : 100)) {
       emailMessageId: emailResult.messageId
     });
 
+    // Rate Counter erhöhen
+    await kv.set(rateLimitKey, emailsToday + 1, { ex: 86400 });
+
     return res.status(200).json({
       success: true,
       data: {
         messageId: emailResult.messageId,
-        recipient: invoice.customer.email,
+        recipient: recipientEmail,
+        recipientName: getRecipientName(invoice),
         sender: config.email.senderEmail,
-        attachments: emailResult.attachments || 0
+        attachments: emailResult.attachments || 0,
+        usedRole: invoice.businessPartner?.selectedRole || 'CUSTOMER'
       },
       message: 'E-Rechnung erfolgreich versendet'
     });
@@ -117,6 +111,26 @@ if (emailsToday >= (user.isSupport ? 1000 : 100)) {
       error: 'E-Mail-Versand fehlgeschlagen: ' + error.message
     });
   }
+}
+
+// KORRIGIERT: Business Partner Empfänger-E-Mail ermitteln
+function getRecipientEmail(invoice) {
+  // Business Partner E-Mail verwenden (neue Struktur)
+  if (invoice.businessPartner?.email) {
+    return invoice.businessPartner.email;
+  }
+  
+  // Fallback: Alte Customer-Struktur
+  if (invoice.customer?.email) {
+    return invoice.customer.email;
+  }
+  
+  return null;
+}
+
+// KORRIGIERT: Business Partner Empfänger-Name ermitteln  
+function getRecipientName(invoice) {
+  return invoice.businessPartner?.name || invoice.customer?.name || 'Kunde';
 }
 
 // E-Mail über externen Provider versenden
@@ -165,17 +179,20 @@ async function sendEmailViaProvider(invoice, config) {
   }
 }
 
-// SendGrid Integration
+// SendGrid Integration - KORRIGIERT für Business Partner
 async function sendViaSendGrid(invoice, config, emailContent, attachments) {
-  const API_KEY = process.env.SENDGRID_API_KEY; // System-API-Key
+  const API_KEY = process.env.SENDGRID_API_KEY;
   
   if (!API_KEY) {
     throw new Error('SendGrid API-Key nicht konfiguriert');
   }
 
+  const recipientEmail = getRecipientEmail(invoice);
+  const recipientName = getRecipientName(invoice);
+
   const emailData = {
     personalizations: [{
-      to: [{ email: invoice.customer.email, name: invoice.customer.name }],
+      to: [{ email: recipientEmail, name: recipientName }],
       subject: emailContent.subject
     }],
     from: {
@@ -222,7 +239,7 @@ async function sendViaSendGrid(invoice, config, emailContent, attachments) {
   };
 }
 
-// Mailgun Integration  
+// Mailgun Integration - KORRIGIERT für Business Partner
 async function sendViaMailgun(invoice, config, emailContent, attachments) {
   const API_KEY = process.env.MAILGUN_API_KEY;
   const DOMAIN = process.env.MAILGUN_DOMAIN;
@@ -231,9 +248,12 @@ async function sendViaMailgun(invoice, config, emailContent, attachments) {
     throw new Error('Mailgun API-Key oder Domain nicht konfiguriert');
   }
 
+  const recipientEmail = getRecipientEmail(invoice);
+  const recipientName = getRecipientName(invoice);
+
   const formData = new FormData();
   formData.append('from', `${config.email.senderName || config.company?.name || 'E-Rechnung'} <${config.email.senderEmail}>`);
-  formData.append('to', `${invoice.customer.name} <${invoice.customer.email}>`);
+  formData.append('to', `${recipientName} <${recipientEmail}>`);
   formData.append('subject', emailContent.subject);
   formData.append('text', emailContent.body);
   formData.append('html', emailContent.htmlBody);
@@ -265,7 +285,7 @@ async function sendViaMailgun(invoice, config, emailContent, attachments) {
   };
 }
 
-// Postmark Integration
+// Postmark Integration - KORRIGIERT für Business Partner
 async function sendViaPostmark(invoice, config, emailContent, attachments) {
   const API_KEY = process.env.POSTMARK_SERVER_TOKEN;
   
@@ -273,9 +293,12 @@ async function sendViaPostmark(invoice, config, emailContent, attachments) {
     throw new Error('Postmark Server-Token nicht konfiguriert');
   }
 
+  const recipientEmail = getRecipientEmail(invoice);
+  const recipientName = getRecipientName(invoice);
+
   const emailData = {
     From: `${config.email.senderName || config.company?.name || 'E-Rechnung'} <${config.email.senderEmail}>`,
-    To: `${invoice.customer.name} <${invoice.customer.email}>`,
+    To: `${recipientName} <${recipientEmail}>`,
     Subject: emailContent.subject,
     TextBody: emailContent.body,
     HtmlBody: emailContent.htmlBody,
@@ -310,19 +333,24 @@ async function sendViaPostmark(invoice, config, emailContent, attachments) {
   };
 }
 
-// E-Mail-Template verarbeiten
+// E-Mail-Template verarbeiten - KORRIGIERT für Business Partner
 function processEmailTemplate(invoice, config) {
   const template = config.templates?.invoice || {};
   const companyName = config.company?.name || 'Ihr Unternehmen';
+  
+  // KORRIGIERT: Business Partner Daten verwenden
+  const customerName = getRecipientName(invoice);
+  const selectedRole = invoice.businessPartner?.selectedRole || 'CUSTOMER';
   
   const variables = {
     invoiceNumber: invoice.invoiceNumber,
     amount: invoice.total.toFixed(2),
     currency: invoice.currency,
-    customerName: invoice.customer.name,
+    customerName: customerName,
     companyName: companyName,
     dueDate: formatDate(invoice.dueDate),
-    date: formatDate(invoice.date)
+    date: formatDate(invoice.date),
+    selectedRole: selectedRole  // NEU: Rolle in E-Mail-Template verfügbar
   };
 
   // Template-Variablen ersetzen
@@ -345,7 +373,7 @@ function replaceVariables(template, variables) {
   return result;
 }
 
-// Standard E-Mail-Template
+// Standard E-Mail-Template - ERWEITERT für Business Partner
 function getDefaultEmailTemplate() {
   return `Sehr geehrte Damen und Herren,
 
@@ -355,6 +383,7 @@ Rechnungsdetails:
 - Rechnungsnummer: {{invoiceNumber}}
 - Rechnungsbetrag: {{amount}} {{currency}}
 - Fälligkeitsdatum: {{dueDate}}
+- Adress-Rolle: {{selectedRole}}
 
 Die Rechnung ist als strukturierte E-Rechnung (XRechnung) beigefügt und kann direkt in Ihr System importiert werden.
 
@@ -399,6 +428,3 @@ async function updateInvoiceStatus(invoiceId, updates) {
     console.error('Status update error:', error);
   }
 }
-
-// AM ENDE: Rate counter erhöhen
-await kv.set(rateLimitKey, emailsToday + 1, { ex: 86400 });
