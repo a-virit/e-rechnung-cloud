@@ -39,7 +39,7 @@ class InvoiceService {
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Fehler beim Laden der Rechnungen');
       }
@@ -67,7 +67,7 @@ class InvoiceService {
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Fehler beim Erstellen der Rechnung');
       }
@@ -103,7 +103,7 @@ class InvoiceService {
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'E-Mail-Versand fehlgeschlagen');
       }
@@ -131,7 +131,7 @@ class InvoiceService {
       if (!response.ok) {
         this.handleAuthError(new Error('Failed to generate PDF'), response);
       }
-      
+
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -164,7 +164,7 @@ class InvoiceService {
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Fehler beim Löschen der Rechnung');
       }

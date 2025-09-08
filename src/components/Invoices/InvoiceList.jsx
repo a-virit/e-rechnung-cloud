@@ -1,15 +1,26 @@
-// src/components/Invoices/InvoiceList.jsx
+// src/components/Invoices/InvoiceList.jsx (KORRIGIERT für PDF-Download)
 import React from 'react';
 import { 
   RefreshCw, FileText, CheckCircle, AlertCircle, Clock, FileX, 
   Send, Download, Trash2, Loader 
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { invoiceService } from '../../services';
 
 const InvoiceList = () => {
   const { state, actions } = useApp();
   const { invoices, loading, submitting } = state;
+
+  // KORRIGIERT: PDF-Download über wrapper function
+  const handleDownloadPDF = async (invoiceId, invoiceNumber) => {
+    try {
+      const result = await actions.downloadInvoicePDF(invoiceId, invoiceNumber);
+      if (!result.success) {
+        alert('PDF-Download fehlgeschlagen: ' + result.error);
+      }
+    } catch (error) {
+      alert('PDF-Download fehlgeschlagen: ' + error.message);
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg border overflow-hidden">
@@ -28,7 +39,7 @@ const InvoiceList = () => {
             invoices={invoices}
             submitting={submitting}
             onSendEmail={actions.sendInvoice}
-            onDownloadPDF={invoiceService.downloadPDF}
+            onDownloadPDF={handleDownloadPDF}  // KORRIGIERT: Wrapper verwenden
             onDelete={actions.deleteInvoice}
           />
         )}
@@ -81,7 +92,7 @@ const InvoiceTable = ({ invoices, submitting, onSendEmail, onDownloadPDF, onDele
           Rechnungs-ID
         </th>
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Kunde
+          Business Partner
         </th>
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Betrag
@@ -112,7 +123,7 @@ const InvoiceTable = ({ invoices, submitting, onSendEmail, onDownloadPDF, onDele
   </table>
 );
 
-// Invoice Row
+// Invoice Row - KORRIGIERT für Business Partner
 const InvoiceRow = ({ invoice, submitting, onSendEmail, onDownloadPDF, onDelete }) => {
   const statusInfo = getStatusInfo(invoice.status);
   const StatusIcon = statusInfo.icon;
@@ -133,99 +144,137 @@ const InvoiceRow = ({ invoice, submitting, onSendEmail, onDownloadPDF, onDelete 
     }
   };
 
+  // KORRIGIERT: Business Partner Daten verwenden statt Customer
+  const customerName = invoice.businessPartner?.name || invoice.customer?.name || 'Unbekannter Kunde';
+  const customerEmail = invoice.businessPartner?.email || invoice.customer?.email || '';
+  const selectedRole = invoice.businessPartner?.selectedRole || 'CUSTOMER';
+
   return (
-    <tr className="hover:bg-gray-50">
-      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-        {invoice.invoiceNumber || invoice.id}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {invoice.customer?.name || invoice.receiver || 'Unbekannt'}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        <span className="font-medium">
-        {(invoice.total || invoice.amount || 0).toFixed(2)} {invoice.currency || 'EUR'}
-        </span>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          {invoice.format}
-        </span>
-      </td>
+    <tr className="hover:bg-gray-50 transition-colors">
       <td className="px-6 py-4 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.bg} ${statusInfo.color}`}>
-          <StatusIcon className="w-3 h-3 mr-1" />
-          {statusInfo.text}
-        </span>
-        {invoice.error && (
-          <p className="text-xs text-red-600 mt-1">{invoice.error}</p>
-        )}
+        <div className="text-sm font-mono text-gray-900">
+          {invoice.invoiceNumber || invoice.id}
+        </div>
+        <div className="text-xs text-gray-500">
+          {invoice.date}
+        </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-        <div className="flex space-x-2">
+      
+      {/* KORRIGIERT: Business Partner anzeigen */}
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="flex items-center">
+          <div className="flex-shrink-0 h-8 w-8">
+            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+              <FileText className="h-4 w-4 text-blue-600" />
+            </div>
+          </div>
+          <div className="ml-3">
+            <div className="text-sm font-medium text-gray-900">
+              {customerName}
+            </div>
+            <div className="text-xs text-gray-500">
+              {customerEmail}
+              {invoice.businessPartner && (
+                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {selectedRole}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </td>
+
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="text-sm text-gray-900 font-mono">
+          {(invoice.total || invoice.amount || 0).toFixed(2)} {invoice.currency || 'EUR'}
+        </div>
+        <div className="text-xs text-gray-500">
+          Netto: {(invoice.subtotal || 0).toFixed(2)} {invoice.currency || 'EUR'}
+        </div>
+      </td>
+      
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+          {invoice.format || 'Standard'}
+        </span>
+      </td>
+      
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+          <StatusIcon className="w-3 h-3 mr-1" />
+          {statusInfo.label}
+        </span>
+      </td>
+      
+      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+        <div className="flex items-center space-x-2">
           {invoice.status === 'draft' && (
-            <ActionButton
+            <button
               onClick={handleSendEmail}
               disabled={submitting}
-              title="E-Mail versenden"
-              color="green"
+              className="inline-flex items-center p-1 text-blue-600 hover:text-blue-800 disabled:opacity-50"
+              title="E-Rechnung versenden"
             >
-              {submitting ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </ActionButton>
+              {submitting ? (
+                <Loader className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
           )}
-          <ActionButton
+          
+          <button
             onClick={handleDownloadPDF}
+            className="inline-flex items-center p-1 text-green-600 hover:text-green-800"
             title="PDF herunterladen"
-            color="blue"
           >
             <Download className="w-4 h-4" />
-          </ActionButton>
-          <ActionButton
+          </button>
+          
+          <button
             onClick={handleDelete}
-            title="Löschen"
-            color="red"
+            className="inline-flex items-center p-1 text-red-600 hover:text-red-800"
+            title="Rechnung löschen"
           >
             <Trash2 className="w-4 h-4" />
-          </ActionButton>
+          </button>
         </div>
       </td>
     </tr>
   );
 };
 
-// Action Button Komponente
-const ActionButton = ({ onClick, disabled = false, title, color, children }) => {
-  const colorClasses = {
-    green: 'text-green-600 hover:text-green-900',
-    blue: 'text-blue-600 hover:text-blue-900',
-    red: 'text-red-600 hover:text-red-900'
-  };
-
-  return (
-    <button 
-      onClick={onClick}
-      disabled={disabled}
-      className={`${colorClasses[color]} disabled:opacity-50`}
-      title={title}
-    >
-      {children}
-    </button>
-  );
-};
-
-// Status Helper Function
+// Status-Helper Funktion
 const getStatusInfo = (status) => {
-  switch (status) {
-    case 'sent':
-      return { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100', text: 'Versendet' };
-    case 'processing':
-      return { icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-100', text: 'Verarbeitung' };
-    case 'failed':
-      return { icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-100', text: 'Fehler' };
-    case 'draft':
-      return { icon: FileX, color: 'text-gray-600', bg: 'bg-gray-100', text: 'Entwurf' };
-    default:
-      return { icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100', text: 'Empfangen' };
-  }
+  const statusMap = {
+    'draft': { 
+      label: 'Entwurf', 
+      color: 'bg-gray-100 text-gray-800', 
+      icon: Clock 
+    },
+    'sent': { 
+      label: 'Versendet', 
+      color: 'bg-blue-100 text-blue-800', 
+      icon: Send 
+    },
+    'paid': { 
+      label: 'Bezahlt', 
+      color: 'bg-green-100 text-green-800', 
+      icon: CheckCircle 
+    },
+    'overdue': { 
+      label: 'Überfällig', 
+      color: 'bg-red-100 text-red-800', 
+      icon: AlertCircle 
+    },
+    'failed': { 
+      label: 'Fehlgeschlagen', 
+      color: 'bg-red-100 text-red-800', 
+      icon: FileX 
+    }
+  };
+  
+  return statusMap[status] || statusMap['draft'];
 };
 
 export default InvoiceList;

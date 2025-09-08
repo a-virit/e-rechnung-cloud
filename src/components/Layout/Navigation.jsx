@@ -6,7 +6,7 @@ import { useApp } from '../../context/AppContext';
 
 const Navigation = ({ activeTab, setActiveTab }) => {
   const { state } = useApp();
-  const { invoices, customers } = state;
+  const { invoices } = state;
 
   const navItems = [
     {
@@ -21,13 +21,6 @@ const Navigation = ({ activeTab, setActiveTab }) => {
       icon: FileText,
       count: invoices.length,
       description: 'Alle Rechnungen verwalten'
-    },
-    {
-      id: 'customers',
-      label: 'Kunden',
-      icon: Users,
-      count: customers.length,
-      description: 'Kundendaten verwalten'
     },
     {
       id: 'business-partners',

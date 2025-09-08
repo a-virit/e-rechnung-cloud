@@ -1,4 +1,4 @@
-// api/generate-xrechnung.js
+// api/generate-xrechnung.js (KORRIGIERT für Business Partner)
 import { kv } from '@vercel/kv';
 
 export default async function handler(req, res) {
@@ -64,6 +64,9 @@ function generateXRechnungXML(invoice, config) {
   const companyInfo = config.company || {};
   const currentDate = new Date().toISOString().split('T')[0];
   
+  // Business Partner Daten extrahieren (mit Fallback auf Customer)
+  const customerData = getCustomerDataForXML(invoice);
+  
   // XRechnung 3.0 UBL XML Template
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <ubl:Invoice 
@@ -113,33 +116,34 @@ function generateXRechnungXML(invoice, config) {
     </cac:Party>
   </cac:AccountingSupplierParty>
   
-  <!-- Käufer (Rechnungsempfänger) -->
+  <!-- Käufer (Rechnungsempfänger) - KORRIGIERT für Business Partner -->
   <cac:AccountingCustomerParty>
     <cac:Party>
       <cac:PartyName>
-        <cbc:Name>${escapeXML(invoice.customer.name)}</cbc:Name>
+        <cbc:Name>${escapeXML(customerData.name)}</cbc:Name>
       </cac:PartyName>
       <cac:PostalAddress>
-        <cbc:StreetName>${escapeXML(invoice.customer.address || 'Kundenstraße 1')}</cbc:StreetName>
-        <cbc:CityName>Kundenstadt</cbc:CityName>
-        <cbc:PostalZone>54321</cbc:PostalZone>
+        <cbc:StreetName>${escapeXML(customerData.street)}</cbc:StreetName>
+        ${customerData.houseNumber ? `<cbc:BuildingNumber>${escapeXML(customerData.houseNumber)}</cbc:BuildingNumber>` : ''}
+        <cbc:CityName>${escapeXML(customerData.city)}</cbc:CityName>
+        <cbc:PostalZone>${escapeXML(customerData.postalCode)}</cbc:PostalZone>
         <cac:Country>
-          <cbc:IdentificationCode>DE</cbc:IdentificationCode>
+          <cbc:IdentificationCode>${customerData.countryCode}</cbc:IdentificationCode>
         </cac:Country>
       </cac:PostalAddress>
-      ${invoice.customer.taxId ? `
+      ${customerData.taxId ? `
       <cac:PartyTaxScheme>
-        <cbc:CompanyID>${escapeXML(invoice.customer.taxId)}</cbc:CompanyID>
+        <cbc:CompanyID>${escapeXML(customerData.taxId)}</cbc:CompanyID>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
       </cac:PartyTaxScheme>
       ` : ''}
       <cac:PartyLegalEntity>
-        <cbc:RegistrationName>${escapeXML(invoice.customer.name)}</cbc:RegistrationName>
+        <cbc:RegistrationName>${escapeXML(customerData.name)}</cbc:RegistrationName>
       </cac:PartyLegalEntity>
       <cac:Contact>
-        <cbc:ElectronicMail>${escapeXML(invoice.customer.email)}</cbc:ElectronicMail>
+        <cbc:ElectronicMail>${escapeXML(customerData.email)}</cbc:ElectronicMail>
       </cac:Contact>
     </cac:Party>
   </cac:AccountingCustomerParty>
@@ -201,6 +205,75 @@ function generateXRechnungXML(invoice, config) {
 </ubl:Invoice>`;
 
   return xml;
+}
+
+// NEU: Helper-Funktion für Business Partner Daten-Extraktion
+function getCustomerDataForXML(invoice) {
+  // Business Partner Daten verwenden (neue Struktur)
+  if (invoice.businessPartner) {
+    const bp = invoice.businessPartner;
+    const addr = bp.address || {};
+    
+    return {
+      name: bp.name || 'Unbekannter Kunde',
+      email: bp.email || addr.email || '',
+      taxId: bp.taxId || addr.taxId || '',
+      street: addr.street || 'Kundenstraße 1',
+      houseNumber: addr.houseNumber || '',
+      city: addr.city || 'Kundenstadt',
+      postalCode: addr.postalCode || '54321',
+      country: addr.country || 'Deutschland',
+      countryCode: getCountryCode(addr.country || 'Deutschland')
+    };
+  }
+  
+  // Fallback: Alte Customer-Struktur
+  if (invoice.customer) {
+    const customer = invoice.customer;
+    
+    return {
+      name: customer.name || 'Unbekannter Kunde',
+      email: customer.email || '',
+      taxId: customer.taxId || '',
+      street: customer.address || 'Kundenstraße 1',
+      houseNumber: '',
+      city: 'Kundenstadt',
+      postalCode: '54321',
+      country: 'Deutschland',
+      countryCode: 'DE'
+    };
+  }
+  
+  // Ultimate Fallback
+  return {
+    name: 'Unbekannter Kunde',
+    email: '',
+    taxId: '',
+    street: 'Kundenstraße 1',
+    houseNumber: '',
+    city: 'Kundenstadt',
+    postalCode: '54321',
+    country: 'Deutschland',
+    countryCode: 'DE'
+  };
+}
+
+// Helper: Ländercode ermitteln
+function getCountryCode(country) {
+  const countryCodes = {
+    'Deutschland': 'DE',
+    'Germany': 'DE', 
+    'Österreich': 'AT',
+    'Austria': 'AT',
+    'Schweiz': 'CH',
+    'Switzerland': 'CH',
+    'Frankreich': 'FR',
+    'France': 'FR',
+    'Niederlande': 'NL',
+    'Netherlands': 'NL'
+  };
+  
+  return countryCodes[country] || 'DE';
 }
 
 // XML-Escape-Funktion

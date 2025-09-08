@@ -3,8 +3,10 @@ import { kv } from '@vercel/kv';
 import { authenticateUser, hasPermission, logSecurityEvent } from './middleware/authMiddleware.js';
 
 const INVOICES_KEY = 'e-invoices';
-const CUSTOMERS_KEY = 'e-customers';
+const BUSINESS_PARTNERS_KEY = 'e-business-partners';  // NEU
+//const CUSTOMERS_KEY = 'e-customers';
 const CONFIG_KEY = 'e-config';
+
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -59,124 +61,149 @@ export default async function handler(req, res) {
       });
     }
     
-    // POST - Neue Rechnung erstellen mit Kundendaten
-    if (req.method === 'POST') {
-      // 🔒 BERECHTIGUNG PRÜFEN
-      if (!hasPermission(user, 'invoices', 'write')) {
-        return res.status(403).json({
-          success: false,
-          error: 'Keine Berechtigung zum Erstellen von Rechnungen'
-        });
-      }
+    // POST - Neue Rechnung erstellen mit Business Partner
+if (req.method === 'POST') {
+  // 🔒 BERECHTIGUNG PRÜFEN
+  if (!hasPermission(user, 'invoices', 'write')) {
+    return res.status(403).json({
+      success: false,
+      error: 'Keine Berechtigung zum Erstellen von Rechnungen'
+    });
+  }
 
-      const { customerId, items, format = 'XRechnung', notes, dueDate } = req.body;
-      
-      if (!customerId || !items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'Kunde und Rechnungspositionen sind erforderlich'
-        });
-      }
+  const { customerId, items, format = 'XRechnung', notes, dueDate, selectedAddressRole } = req.body;
+  
+  if (!customerId || !items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Business Partner und Rechnungspositionen sind erforderlich'
+    });
+  }
 
-      // Kundendaten laden und Berechtigung prüfen
-      const customers = await kv.get(CUSTOMERS_KEY) || [];
-      const customer = customers.find(c => c.id === customerId);
-      
-      if (!customer) {
-        return res.status(400).json({
-          success: false,
-          error: 'Kunde nicht gefunden'
-        });
-      }
+  // Business Partner laden statt Customer
+  const businessPartners = await kv.get('e-business-partners') || [];
+  const businessPartner = businessPartners.find(bp => bp.businessPartnerNumber === customerId);
+  
+  if (!businessPartner) {
+    return res.status(404).json({
+      success: false,
+      error: 'Business Partner nicht gefunden'
+    });
+  }
 
-      // 🔒 ZUGRIFF AUF KUNDEN PRÜFEN
-      if (!user.isSupport && user.companyId !== 'all' && customer.companyId !== user.companyId) {
-        logSecurityEvent('UNAUTHORIZED_ACCESS', user, {
-          resource: 'invoices',
-          action: 'create_for_customer',
-          success: false,
-          customerId
-        });
+  // 🔒 ZUGRIFF AUF BUSINESS PARTNER PRÜFEN
+  if (!user.isSupport && user.companyId !== 'all' && businessPartner.companyId !== user.companyId) {
+    logSecurityEvent('UNAUTHORIZED_ACCESS', user, {
+      resource: 'invoices',
+      action: 'create_for_business_partner',
+      success: false,
+      businessPartnerId: customerId
+    });
 
-        return res.status(403).json({
-          success: false,
-          error: 'Keine Berechtigung für diesen Kunden'
-        });
-      }
+    return res.status(403).json({
+      success: false,
+      error: 'Keine Berechtigung für diesen Business Partner'
+    });
+  }
 
-      // Konfiguration laden (firmen-spezifisch)
-      const configKey = user.companyId === 'all' || user.isSupport 
-        ? CONFIG_KEY 
-        : `${CONFIG_KEY}-${user.companyId}`;
-      const config = await kv.get(configKey) || {};
-      
-      const taxRate = config.invoice?.taxRate || 19;
-      const currency = config.invoice?.currency || 'EUR';
+  // Gewählte Adresse extrahieren (Priority: selectedAddressRole > BILLING > CUSTOMER > erste verfügbare)
+  let selectedAddress = null;
+  let usedRole = 'CUSTOMER';
 
-      // Rechnungssumme berechnen
-      const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-      const taxAmount = subtotal * (taxRate / 100);
-      const total = subtotal + taxAmount;
-
-      // Rechnungsnummer generieren
-      const currentInvoices = await kv.get(INVOICES_KEY) || [];
-      const invoiceNumber = generateInvoiceNumber(config.invoice?.numberPrefix || 'INV-');
-      
-      const newInvoice = {
-        id: `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        invoiceNumber,
-        customerId,
-        customer: {
-          name: customer.name,
-          email: customer.email,
-          address: customer.address,
-          taxId: customer.taxId
-        },
-        items,
-        subtotal: Math.round(subtotal * 100) / 100,
-        taxRate,
-        taxAmount: Math.round(taxAmount * 100) / 100,
-        total: Math.round(total * 100) / 100,
-        currency,
-        format,
-        notes: notes || '',
-        date: new Date().toISOString().split('T')[0],
-        dueDate: dueDate || new Date(Date.now() + (config.invoice?.paymentTerms || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        status: 'draft',
-        companyId: user.companyId || 'default', // 🔒 Firma zuordnen
-        createdBy: user.id, // 🔒 Ersteller tracken
-        receivedAt: new Date().toISOString(),
-        processedAt: null,
-        sentAt: null,
-        paidAt: null
-      };
-      
-      const updatedInvoices = [newInvoice, ...currentInvoices];
-      await kv.set(INVOICES_KEY, updatedInvoices);
-
-      // Kundenstatistik aktualisieren
-      const customerIndex = customers.findIndex(c => c.id === customerId);
-      if (customerIndex !== -1) {
-        customers[customerIndex].invoiceCount = (customers[customerIndex].invoiceCount || 0) + 1;
-        customers[customerIndex].lastInvoice = new Date().toISOString();
-        await kv.set(CUSTOMERS_KEY, customers);
-      }
-
-      logSecurityEvent('INVOICE_CREATED', user, {
-        resource: 'invoices',
-        action: 'create',
-        success: true,
-        invoiceId: newInvoice.id,
-        customerId,
-        amount: total
-      });
-      
-      return res.status(201).json({
-        success: true,
-        data: newInvoice,
-        message: 'Rechnung erfolgreich erstellt'
-      });
+  if (selectedAddressRole) {
+    selectedAddress = businessPartner.roles?.find(role => role.roleCode === selectedAddressRole)?.address;
+    usedRole = selectedAddressRole;
+  }
+  
+  if (!selectedAddress) {
+    // Fallback Reihenfolge: BILLING > CUSTOMER > erste verfügbare
+    const billingRole = businessPartner.roles?.find(role => role.roleCode === 'BILLING');
+    const customerRole = businessPartner.roles?.find(role => role.roleCode === 'CUSTOMER');
+    
+    if (billingRole?.address?.city) {
+      selectedAddress = billingRole.address;
+      usedRole = 'BILLING';
+    } else if (customerRole?.address?.city) {
+      selectedAddress = customerRole.address;
+      usedRole = 'CUSTOMER';
+    } else {
+      selectedAddress = businessPartner.roles?.[0]?.address || {};
+      usedRole = businessPartner.roles?.[0]?.roleCode || 'CUSTOMER';
     }
+  }
+
+  // Konfiguration laden (firmen-spezifisch)
+  const configKey = user.companyId === 'all' || user.isSupport 
+    ? CONFIG_KEY 
+    : `${CONFIG_KEY}-${user.companyId}`;
+  const config = await kv.get(configKey) || {};
+  
+  const taxRate = config.invoice?.taxRate || 19;
+  const currency = config.invoice?.currency || 'EUR';
+
+  // Rechnungssumme berechnen
+  const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+  const taxAmount = subtotal * (taxRate / 100);
+  const total = subtotal + taxAmount;
+
+  // Rechnungsnummer generieren
+  const currentInvoices = await kv.get(INVOICES_KEY) || [];
+  const invoiceNumber = generateInvoiceNumber(config.invoice?.numberPrefix || 'INV-');
+  
+  const newInvoice = {
+    id: `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    invoiceNumber,
+    businessPartnerId: customerId,  // NEU: Business Partner Referenz
+    businessPartner: {              // NEU: Business Partner Daten
+      businessPartnerNumber: businessPartner.businessPartnerNumber,
+      name: businessPartner.name,
+      email: selectedAddress.email || businessPartner.primaryEmail,
+      address: {
+        street: selectedAddress.street || '',
+        houseNumber: selectedAddress.houseNumber || '',
+        postalCode: selectedAddress.postalCode || '',
+        city: selectedAddress.city || '',
+        country: selectedAddress.country || 'Deutschland'
+      },
+      selectedRole: usedRole
+    },
+    items,
+    subtotal: Math.round(subtotal * 100) / 100,
+    taxRate,
+    taxAmount: Math.round(taxAmount * 100) / 100,
+    total: Math.round(total * 100) / 100,
+    currency,
+    format,
+    notes: notes || '',
+    date: new Date().toISOString().split('T')[0],
+    dueDate: dueDate || new Date(Date.now() + (config.invoice?.paymentTerms || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'draft',
+    companyId: user.companyId || 'default',
+    createdBy: user.id,
+    receivedAt: new Date().toISOString(),
+    processedAt: null,
+    sentAt: null,
+    paidAt: null
+  };
+  
+  const updatedInvoices = [newInvoice, ...currentInvoices];
+  await kv.set(INVOICES_KEY, updatedInvoices);
+
+  logSecurityEvent('INVOICE_CREATED', user, {
+    resource: 'invoices',
+    action: 'create',
+    success: true,
+    invoiceId: newInvoice.id,
+    businessPartnerId: customerId,
+    amount: total
+  });
+  
+  return res.status(201).json({
+    success: true,
+    data: newInvoice,
+    message: 'Rechnung erfolgreich erstellt'
+  });
+}
 
     // DELETE - Rechnung löschen
     if (req.method === 'DELETE') {

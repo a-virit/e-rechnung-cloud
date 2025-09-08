@@ -1,4 +1,4 @@
-// api/generate-pdf.js - PDF-Generierung
+// api/generate-pdf.js - PDF-Generierung (KORRIGIERT für Business Partner)
 import { kv } from '@vercel/kv';
 
 export default async function handler(req, res) {
@@ -72,7 +72,7 @@ export default async function handler(req, res) {
   }
 }
 
-// HTML für Rechnung generieren
+// HTML für Rechnung generieren (KORRIGIERT für Business Partner)
 function generateInvoiceHTML(invoice, config) {
   const company = config.company || {};
   
@@ -107,6 +107,16 @@ function generateInvoiceHTML(invoice, config) {
         }
         .customer-info { 
             margin: 20px 0; 
+        }
+        .role-badge {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
         }
         .items-table { 
             width: 100%; 
@@ -160,9 +170,12 @@ function generateInvoiceHTML(invoice, config) {
 
     <div class="customer-info">
         <h3>Rechnungsempfänger:</h3>
-        <p><strong>${invoice.customer?.name || 'Kunde'}</strong></p>
-        ${invoice.customer?.address ? `<p>${invoice.customer.address}</p>` : ''}
-        ${invoice.customer?.taxId ? `<p>USt-IdNr.: ${invoice.customer.taxId}</p>` : ''}
+        <p><strong>${getCustomerName(invoice)}</strong>
+        ${invoice.businessPartner?.selectedRole ? 
+          `<span class="role-badge">${invoice.businessPartner.selectedRole}</span>` : ''
+        }</p>
+        ${getCustomerAddress(invoice)}
+        ${getCustomerTaxId(invoice)}
     </div>
 
     <div class="invoice-info">
@@ -233,6 +246,38 @@ function generateInvoiceHTML(invoice, config) {
     </div>
 </body>
 </html>`;
+}
+
+// Helper-Funktionen für Business Partner Kompatibilität
+function getCustomerName(invoice) {
+  return invoice.businessPartner?.name || invoice.customer?.name || 'Kunde';
+}
+
+function getCustomerAddress(invoice) {
+  // Business Partner Adresse (strukturiert)
+  if (invoice.businessPartner?.address) {
+    const addr = invoice.businessPartner.address;
+    const street = `${addr.street || ''} ${addr.houseNumber || ''}`.trim();
+    const cityLine = `${addr.postalCode || ''} ${addr.city || ''}`.trim();
+    
+    return `
+      ${street ? `<p>${street}</p>` : ''}
+      ${cityLine ? `<p>${cityLine}</p>` : ''}
+      ${addr.country && addr.country !== 'Deutschland' ? `<p>${addr.country}</p>` : ''}
+    `;
+  }
+  
+  // Fallback: Alte Customer Adresse (String)
+  if (invoice.customer?.address) {
+    return `<p>${invoice.customer.address}</p>`;
+  }
+  
+  return '';
+}
+
+function getCustomerTaxId(invoice) {
+  const taxId = invoice.businessPartner?.taxId || invoice.customer?.taxId;
+  return taxId ? `<p>USt-IdNr.: ${taxId}</p>` : '';
 }
 
 function formatDateDE(dateString) {

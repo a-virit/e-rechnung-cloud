@@ -7,9 +7,9 @@ import Header from './components/Layout/Header';
 import Navigation from './components/Layout/Navigation';
 import Dashboard from './components/Dashboard/Dashboard';
 import InvoiceList from './components/Invoices/InvoiceList';
-import CustomerManagement from './components/Customers/CustomerManagement';
+//import CustomerManagement from './components/Customers/CustomerManagement';
 import UserManagement from './components/Users/UserManagement';
-import CustomerModal from './components/Customers/CustomerModal';
+//import CustomerModal from './components/Customers/CustomerModal';
 import ConfigModal from './components/Config/ConfigModal';
 import InvoiceModal from './components/Invoices/InvoiceModal';
 import ProfileSystemSettings from './components/Settings/ProfileSystemSettings';
@@ -43,10 +43,6 @@ const AuthenticatedApp = () => {
         // 🔧 KORRIGIERT: Nur Leseberechtigung erforderlich für die Liste
         return <InvoiceList />;
         
-      case 'customers':
-        // 🔧 KORRIGIERT: Nur Leseberechtigung erforderlich für die Liste  
-        return <CustomerManagement />;
-
       case 'business-partners':  // NEU
         return <BusinessPartnerManagement />;
         
@@ -72,9 +68,6 @@ const AuthenticatedApp = () => {
         <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
         {renderContent()}
       </div>
-
-      {/* 🔧 KORRIGIERT: Modals brauchen keine extra Protection - wird in den Komponenten selbst geprüft */}
-      <CustomerModal />
       <ConfigModal />
       <InvoiceModal />
       <BusinessPartnerModal />
