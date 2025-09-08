@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   // Rate-Limiting (100 E-Mails pro Tag in Dev, 1000 in Prod)
   const rateLimitKey = 'email-rate-limit-' + new Date().toDateString();
   const emailsToday = await kv.get(rateLimitKey) || 0;
-  
+
   if (emailsToday >= (process.env.NODE_ENV === 'production' ? 1000 : 100)) {
     return res.status(429).json({
       success: false,
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
   try {
     const { invoiceId, attachXML = true, attachPDF = false } = req.body;
-    
+
     if (!invoiceId) {
       return res.status(400).json({
         success: false,
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     const invoices = await kv.get('e-invoices') || [];
     const invoice = invoices.find(inv => inv.id === invoiceId);
     const config = await kv.get('e-config') || {};
-    
+
     if (!invoice) {
       return res.status(404).json({
         success: false,
@@ -66,11 +66,11 @@ export default async function handler(req, res) {
 
     // E-Mail über externen Service versenden
     const emailResult = await sendEmailViaProvider(invoice, config);
-    
+
     if (!emailResult.success) {
       throw new Error(emailResult.error);
     }
-    
+
     // Rechnungsstatus aktualisieren
     await updateInvoiceStatus(invoiceId, {
       status: 'sent',
@@ -96,7 +96,7 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Email sending error:', error);
-    
+
     // Bei Fehler Rechnungsstatus auf 'failed' setzen
     if (req.body.invoiceId) {
       await updateInvoiceStatus(req.body.invoiceId, {
@@ -105,7 +105,7 @@ export default async function handler(req, res) {
         errorAt: new Date().toISOString()
       });
     }
-    
+
     return res.status(500).json({
       success: false,
       error: 'E-Mail-Versand fehlgeschlagen: ' + error.message
@@ -119,12 +119,12 @@ function getRecipientEmail(invoice) {
   if (invoice.businessPartner?.email) {
     return invoice.businessPartner.email;
   }
-  
+
   // Fallback: Alte Customer-Struktur
   if (invoice.customer?.email) {
     return invoice.customer.email;
   }
-  
+
   return null;
 }
 
@@ -136,21 +136,24 @@ function getRecipientName(invoice) {
 // E-Mail über externen Provider versenden
 async function sendEmailViaProvider(invoice, config) {
   const emailProvider = config.email.provider || 'sendgrid';
-  
+
   // E-Mail-Template verarbeiten
   const emailContent = processEmailTemplate(invoice, config);
-  
+
   // Anhänge vorbereiten
   const attachments = [];
-  
+
   // XRechnung XML anhängen
   try {
-    const xmlResponse = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/api/generate-xrechnung`, {
+    const formatResponse = await fetch(`${baseUrl}/api/generate-formats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ invoiceId: invoice.id })
-    });
-    
+      body: JSON.stringify({
+        invoiceId: invoice.id,
+        format: 'XRechnung' // oder 'ZUGFeRD' oder 'Both'
+      })
+    })
+
     if (xmlResponse.ok) {
       const xmlData = await xmlResponse.json();
       attachments.push({
@@ -167,13 +170,13 @@ async function sendEmailViaProvider(invoice, config) {
   switch (emailProvider) {
     case 'sendgrid':
       return await sendViaSendGrid(invoice, config, emailContent, attachments);
-      
+
     case 'mailgun':
       return await sendViaMailgun(invoice, config, emailContent, attachments);
-      
+
     case 'postmark':
       return await sendViaPostmark(invoice, config, emailContent, attachments);
-      
+
     default:
       throw new Error(`Unbekannter E-Mail-Provider: ${emailProvider}`);
   }
@@ -182,7 +185,7 @@ async function sendEmailViaProvider(invoice, config) {
 // SendGrid Integration - KORRIGIERT für Business Partner
 async function sendViaSendGrid(invoice, config, emailContent, attachments) {
   const API_KEY = process.env.SENDGRID_API_KEY;
-  
+
   if (!API_KEY) {
     throw new Error('SendGrid API-Key nicht konfiguriert');
   }
@@ -205,17 +208,21 @@ async function sendViaSendGrid(invoice, config, emailContent, attachments) {
         value: emailContent.body
       },
       {
-        type: 'text/html', 
+        type: 'text/html',
         value: emailContent.htmlBody
       }
-    ],
-    attachments: attachments.map(att => ({
+    ]
+  };
+
+  // Anhänge nur hinzufügen wenn vorhanden (SendGrid-Requirement)
+  if (attachments.length > 0) {
+    emailData.attachments = attachments.map(att => ({
       content: att.content,
       filename: att.filename,
       type: att.type,
       disposition: 'attachment'
-    }))
-  };
+    }));
+  }
 
   const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
@@ -243,7 +250,7 @@ async function sendViaSendGrid(invoice, config, emailContent, attachments) {
 async function sendViaMailgun(invoice, config, emailContent, attachments) {
   const API_KEY = process.env.MAILGUN_API_KEY;
   const DOMAIN = process.env.MAILGUN_DOMAIN;
-  
+
   if (!API_KEY || !DOMAIN) {
     throw new Error('Mailgun API-Key oder Domain nicht konfiguriert');
   }
@@ -288,7 +295,7 @@ async function sendViaMailgun(invoice, config, emailContent, attachments) {
 // Postmark Integration - KORRIGIERT für Business Partner
 async function sendViaPostmark(invoice, config, emailContent, attachments) {
   const API_KEY = process.env.POSTMARK_SERVER_TOKEN;
-  
+
   if (!API_KEY) {
     throw new Error('Postmark Server-Token nicht konfiguriert');
   }
@@ -337,11 +344,11 @@ async function sendViaPostmark(invoice, config, emailContent, attachments) {
 function processEmailTemplate(invoice, config) {
   const template = config.templates?.invoice || {};
   const companyName = config.company?.name || 'Ihr Unternehmen';
-  
+
   // KORRIGIERT: Business Partner Daten verwenden
   const customerName = getRecipientName(invoice);
   const selectedRole = invoice.businessPartner?.selectedRole || 'CUSTOMER';
-  
+
   const variables = {
     invoiceNumber: invoice.invoiceNumber,
     amount: invoice.total.toFixed(2),
@@ -356,7 +363,7 @@ function processEmailTemplate(invoice, config) {
   // Template-Variablen ersetzen
   const subject = replaceVariables(template.subject || 'Neue Rechnung: {{invoiceNumber}}', variables);
   const body = replaceVariables(template.body || getDefaultEmailTemplate(), variables);
-  
+
   // HTML-Version erstellen
   const htmlBody = convertToHTML(body);
 
@@ -414,14 +421,14 @@ async function updateInvoiceStatus(invoiceId, updates) {
   try {
     const invoices = await kv.get('e-invoices') || [];
     const index = invoices.findIndex(inv => inv.id === invoiceId);
-    
+
     if (index !== -1) {
       invoices[index] = {
         ...invoices[index],
         ...updates,
         updatedAt: new Date().toISOString()
       };
-      
+
       await kv.set('e-invoices', invoices);
     }
   } catch (error) {

@@ -1,9 +1,124 @@
-// src/components/Invoices/InvoiceModal.jsx
+// src/components/Invoices/InvoiceModal.jsx - KORRIGIERT
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Trash2, Calculator } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { validateInvoice, validateInvoiceItem } from '../../utils/validation';
 import { formatCurrency } from '../../utils/formatters';
+
+// Format-Informationen helper - AUSGELAGERT
+function getFormatInfo(format) {
+  const formatDetails = {
+    'XRechnung': {
+      title: 'XRechnung - Standard für Deutschland',
+      details: 'Strukturierte E-Rechnung nach EN16931. Verpflichtend für B2B-Rechnungen an öffentliche Auftraggeber seit 2020.'
+    },
+    'ZUGFeRD': {
+      title: 'ZUGFeRD - Hybridformat',
+      details: 'Kombiniert PDF für Menschen mit XML für Maschinen. Ideal für B2B-Kommunikation mit verschiedenen Systemen.'
+    },
+    'Both': {
+      title: 'Maximale Kompatibilität',
+      details: 'Beide Formate werden generiert und als separate Anhänge versendet. Empfänger kann gewünschtes Format wählen.'
+    }
+  };
+
+  return formatDetails[format] || formatDetails['XRechnung'];
+}
+
+// Format-Auswahl-Sektion - AUSGELAGERT als separate Komponente
+const FormatSelectionSection = ({ formData, setFormData }) => {
+  const formatOptions = [
+    {
+      value: 'XRechnung',
+      label: 'XRechnung 3.0',
+      description: 'Standard für deutsche B2B E-Rechnungen',
+      icon: '🇩🇪',
+      recommended: true
+    },
+    {
+      value: 'ZUGFeRD',
+      label: 'ZUGFeRD 2.2',
+      description: 'Hybridformat für Deutschland/Europa',
+      icon: '📄',
+      recommended: false
+    },
+    {
+      value: 'Both',
+      label: 'Beide Formate',
+      description: 'XRechnung + ZUGFeRD als separate Anhänge',
+      icon: '📊',
+      recommended: false
+    }
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-3">
+          E-Rechnungsformat auswählen
+        </label>
+        <div className="grid grid-cols-1 gap-3">
+          {formatOptions.map((option) => (
+            <div
+              key={option.value}
+              className={`relative rounded-lg border-2 cursor-pointer transition-all ${
+                formData.format === option.value
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+              onClick={() => setFormData(prev => ({ ...prev, format: option.value }))}
+            >
+              <div className="p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center">
+                    <span className="text-lg mr-2">{option.icon}</span>
+                    <div className="text-sm font-medium text-gray-900">
+                      {option.label}
+                    </div>
+                  </div>
+                  {option.recommended && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Empfohlen
+                    </span>
+                  )}
+                  {/* Radio Button */}
+                  <input
+                    type="radio"
+                    name="format"
+                    value={option.value}
+                    checked={formData.format === option.value}
+                    onChange={(e) => setFormData(prev => ({ ...prev, format: e.target.value }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                </div>
+                <p className="text-xs text-gray-600">{option.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Format-Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-blue-800">
+              {getFormatInfo(formData.format).title}
+            </h3>
+            <div className="mt-1 text-sm text-blue-700">
+              <p>{getFormatInfo(formData.format).details}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const InvoiceModal = () => {
   const { state, actions } = useApp();
@@ -32,7 +147,6 @@ const InvoiceModal = () => {
         id: bp.businessPartnerNumber,
         name: bp.name,
         email: bp.primaryEmail,
-        // Weitere Felder für spätere Nutzung
         roles: bp.roles,
         addresses: bp.roles.reduce((acc, role) => {
           acc[role.roleCode] = role.address;
@@ -42,12 +156,11 @@ const InvoiceModal = () => {
   }, [businessPartners]);
 
   useEffect(() => {
-    setCurrentAddressIndex(0); // Index zurücksetzen bei BP-Wechsel
+    setCurrentAddressIndex(0);
   }, [formData.customerId]);
 
   // Form initialisieren
   useEffect(() => {
-
     if (editingInvoice) {
       setFormData({
         customerId: editingInvoice.customerId || '',
@@ -105,7 +218,6 @@ const InvoiceModal = () => {
       items: prev.items.filter((_, i) => i !== index)
     }));
 
-    // Fehler für entfernte Items löschen
     const newErrors = { ...errors };
     delete newErrors[`item_${index}`];
     setErrors(newErrors);
@@ -117,7 +229,6 @@ const InvoiceModal = () => {
 
     setFormData(prev => ({ ...prev, items: newItems }));
 
-    // Fehler für dieses Item löschen
     if (errors[`item_${index}`]) {
       const newErrors = { ...errors };
       delete newErrors[`item_${index}`][field];
@@ -167,32 +278,31 @@ const InvoiceModal = () => {
     setIsSubmitting(true);
 
     try {
-    // Gewählte Adress-Rolle ermitteln
-    const selectedBP = availableCustomers.find(bp => bp.id === formData.customerId);
-    const availableAddressRoles = selectedBP?.roles?.filter(role => 
-      ['CUSTOMER', 'BILLING', 'DELIVERY'].includes(role.roleCode) && 
-      role.address?.city
-    ) || [];
-    
-    const selectedRole = availableAddressRoles[currentAddressIndex]?.roleCode || 'CUSTOMER';
+      const selectedBP = availableCustomers.find(bp => bp.id === formData.customerId);
+      const availableAddressRoles = selectedBP?.roles?.filter(role =>
+        ['CUSTOMER', 'BILLING', 'DELIVERY'].includes(role.roleCode) &&
+        role.address?.city
+      ) || [];
 
-    const invoiceData = {
-      ...formData,
-      selectedAddressRole: selectedRole,  // NEU: Gewählte Adress-Rolle
-      ...calculations,
-      date: new Date().toISOString().split('T')[0]
-    };
+      const selectedRole = availableAddressRoles[currentAddressIndex]?.roleCode || 'CUSTOMER';
+
+      const invoiceData = {
+        ...formData,
+        selectedAddressRole: selectedRole,
+        ...calculations,
+        date: new Date().toISOString().split('T')[0]
+      };
 
       const result = await actions.createInvoice(invoiceData);
 
       if (result.success) {
         handleClose();
-        console.log('Rechnung erfolgreich erstellt!');
+        alert('Rechnung erfolgreich erstellt!');
       } else {
-        console.log('Fehler beim Erstellen: ' + result.error);
+        alert('Fehler beim Erstellen: ' + result.error);
       }
     } catch (error) {
-      console.log('Fehler beim Erstellen: ' + error.message);
+      alert('Fehler beim Erstellen: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -204,27 +314,23 @@ const InvoiceModal = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-5xl w-full max-h-[95vh] overflow-y-auto">
         <div className="p-6">
-          {/* Header */}
           <InvoiceModalHeader
             isEditing={isEditing}
             onClose={handleClose}
             isSubmitting={isSubmitting}
           />
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basis-Informationen */}
             <BasicInfoSection
               formData={formData}
               setFormData={setFormData}
-              availableCustomers={availableCustomers}  // Geändert von customers
+              availableCustomers={availableCustomers}
               errors={errors}
-              actions={actions}  // NEU hinzufügen
-              currentAddressIndex={currentAddressIndex}          // NEU
-              setCurrentAddressIndex={setCurrentAddressIndex}    // NEU
+              actions={actions}
+              currentAddressIndex={currentAddressIndex}
+              setCurrentAddressIndex={setCurrentAddressIndex}
             />
 
-            {/* Rechnungspositionen */}
             <InvoiceItemsSection
               items={formData.items}
               onAddItem={addItem}
@@ -234,17 +340,14 @@ const InvoiceModal = () => {
               calculations={calculations}
             />
 
-            {/* Berechnungsübersicht */}
             <CalculationSummary calculations={calculations} />
 
-            {/* Notizen */}
             <NotesSection
               notes={formData.notes}
               onChange={(notes) => setFormData(prev => ({ ...prev, notes }))}
               error={errors.notes}
             />
 
-            {/* Buttons */}
             <FormButtons
               onCancel={handleClose}
               isSubmitting={isSubmitting}
@@ -278,73 +381,69 @@ const InvoiceModalHeader = ({ isEditing, onClose, isSubmitting }) => (
   </div>
 );
 
-// Basis-Informationen Sektion
+// KORRIGIERTE Basis-Informationen Sektion
 const BasicInfoSection = ({ formData, setFormData, availableCustomers, errors, actions, currentAddressIndex, setCurrentAddressIndex }) => (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Business Partner (Kunde) auswählen *
-      </label>
-      <select
-        value={formData.customerId}
-        onChange={(e) => setFormData(prev => ({ ...prev, customerId: e.target.value }))}
-        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.customerId ? 'border-red-300' : 'border-gray-300'
+  <div className="space-y-4">
+    {/* Erste Zeile: Business Partner Auswahl */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Business Partner (Kunde) auswählen *
+        </label>
+        <select
+          value={formData.customerId}
+          onChange={(e) => setFormData(prev => ({ ...prev, customerId: e.target.value }))}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.customerId ? 'border-red-300' : 'border-gray-300'
           }`}
-        required
-      >
-        <option value="">Business Partner wählen...</option>
-        {availableCustomers.map(customer => (
-          <option key={customer.id} value={customer.id}>
-            {customer.name} ({customer.email})
-          </option>
-        ))}
-      </select>
-      {errors.customerId && (
-        <p className="mt-1 text-sm text-red-600">{errors.customerId}</p>
-      )}
-      {availableCustomers.length === 0 && (
-        <p className="mt-1 text-sm text-amber-600">
-          Keine aktiven Business Partner mit Kunden-Rolle gefunden.
-          <button
-            type="button"
-            onClick={() => actions.openModal('businessPartner')}
-            className="ml-1 text-blue-600 hover:text-blue-800 underline"
-          >
-            Jetzt erstellen
-          </button>
-        </p>
-      )}
+          required
+        >
+          <option value="">Business Partner wählen...</option>
+          {availableCustomers.map(customer => (
+            <option key={customer.id} value={customer.id}>
+              {customer.name} ({customer.email})
+            </option>
+          ))}
+        </select>
+        {errors.customerId && (
+          <p className="mt-1 text-sm text-red-600">{errors.customerId}</p>
+        )}
+        {availableCustomers.length === 0 && (
+          <p className="mt-1 text-sm text-amber-600">
+            Keine aktiven Business Partner mit Kunden-Rolle gefunden.
+            <button
+              type="button"
+              onClick={() => actions.openModal('businessPartner')}
+              className="ml-1 text-blue-600 hover:text-blue-800 underline"
+            >
+              Jetzt erstellen
+            </button>
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Fälligkeitsdatum
+        </label>
+        <input
+          type="date"
+          value={formData.dueDate}
+          onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
     </div>
 
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        E-Rechnungsformat
-      </label>
-      <select
-        value={formData.format}
-        onChange={(e) => setFormData(prev => ({ ...prev, format: e.target.value }))}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="XRechnung">XRechnung 3.0</option>
-        <option value="ZUGFeRD">ZUGFeRD 2.1</option>
-        <option value="UBL">UBL 2.1</option>
-        <option value="CII">CII D16B</option>
-      </select>
-    </div>
-
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Fälligkeitsdatum
-      </label>
-      <input
-        type="date"
-        value={formData.dueDate}
-        onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+    {/* Zweite Zeile: Format-Auswahl */}
+    <div className="p-4 bg-gray-50 rounded-lg">
+      <FormatSelectionSection
+        formData={formData}
+        setFormData={setFormData}
       />
     </div>
 
-    {/* Erweiterte Adress-Auswahl mit Navigation */}
+    {/* Dritte Zeile: Adress-Auswahl */}
     {formData.customerId && (() => {
       const selectedBP = availableCustomers.find(bp => bp.id === formData.customerId);
       const availableAddresses = selectedBP?.roles?.filter(role =>
@@ -352,11 +451,9 @@ const BasicInfoSection = ({ formData, setFormData, availableCustomers, errors, a
         role.address?.city
       ) || [];
 
-      //const [currentAddressIndex, setCurrentAddressIndex] = React.useState(0);
-
       if (availableAddresses.length === 0) {
         return (
-          <div className="md:col-span-3 mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
             <h4 className="text-sm font-medium text-blue-900 mb-2">Rechnungsadresse</h4>
             <p className="text-sm text-amber-700">
               Keine vollständige Adresse hinterlegt.
@@ -383,7 +480,7 @@ const BasicInfoSection = ({ formData, setFormData, availableCustomers, errors, a
       };
 
       return (
-        <div className="md:col-span-3 mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
           <div className="flex justify-between items-center mb-2">
             <h4 className="text-sm font-medium text-blue-900">Rechnungsadresse</h4>
 
@@ -433,11 +530,10 @@ const BasicInfoSection = ({ formData, setFormData, availableCustomers, errors, a
         </div>
       );
     })()}
-
   </div>
 );
 
-// Rechnungspositionen Sektion
+// Rest der Komponenten bleiben unverändert...
 const InvoiceItemsSection = ({ items, onAddItem, onRemoveItem, onUpdateItem, errors, calculations }) => (
   <div className="space-y-4">
     <div className="flex justify-between items-center">
@@ -473,7 +569,6 @@ const InvoiceItemsSection = ({ items, onAddItem, onRemoveItem, onUpdateItem, err
   </div>
 );
 
-// Einzelne Rechnungsposition
 const InvoiceItem = ({ item, index, onUpdate, onRemove, canRemove, errors, currency }) => {
   const lineTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
 
@@ -485,8 +580,9 @@ const InvoiceItem = ({ item, index, onUpdate, onRemove, canRemove, errors, curre
           placeholder="Beschreibung der Leistung"
           value={item.description}
           onChange={(e) => onUpdate(index, 'description', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors?.description ? 'border-red-300' : 'border-gray-300'
-            }`}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors?.description ? 'border-red-300' : 'border-gray-300'
+          }`}
           required
         />
         {errors?.description && (
@@ -502,8 +598,9 @@ const InvoiceItem = ({ item, index, onUpdate, onRemove, canRemove, errors, curre
           step="0.01"
           value={item.quantity}
           onChange={(e) => onUpdate(index, 'quantity', parseFloat(e.target.value) || 1)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right ${errors?.quantity ? 'border-red-300' : 'border-gray-300'
-            }`}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right ${
+            errors?.quantity ? 'border-red-300' : 'border-gray-300'
+          }`}
           required
         />
         {errors?.quantity && (
@@ -519,8 +616,9 @@ const InvoiceItem = ({ item, index, onUpdate, onRemove, canRemove, errors, curre
           step="0.01"
           value={item.price}
           onChange={(e) => onUpdate(index, 'price', parseFloat(e.target.value) || 0)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right ${errors?.price ? 'border-red-300' : 'border-gray-300'
-            }`}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right ${
+            errors?.price ? 'border-red-300' : 'border-gray-300'
+          }`}
           required
         />
         {errors?.price && (
@@ -546,7 +644,6 @@ const InvoiceItem = ({ item, index, onUpdate, onRemove, canRemove, errors, curre
   );
 };
 
-// Berechnungsübersicht
 const CalculationSummary = ({ calculations }) => (
   <div className="bg-gray-50 p-4 rounded-lg">
     <h4 className="font-semibold mb-3 flex items-center">
@@ -573,7 +670,6 @@ const CalculationSummary = ({ calculations }) => (
   </div>
 );
 
-// Notizen Sektion
 const NotesSection = ({ notes, onChange, error }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -584,8 +680,9 @@ const NotesSection = ({ notes, onChange, error }) => (
       onChange={(e) => onChange(e.target.value)}
       rows={3}
       placeholder="Zusätzliche Informationen zur Rechnung..."
-      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${error ? 'border-red-300' : 'border-gray-300'
-        }`}
+      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+        error ? 'border-red-300' : 'border-gray-300'
+      }`}
     />
     {error && (
       <p className="mt-1 text-sm text-red-600">{error}</p>
@@ -593,7 +690,6 @@ const NotesSection = ({ notes, onChange, error }) => (
   </div>
 );
 
-// Form Buttons
 const FormButtons = ({ onCancel, isSubmitting, isEditing }) => (
   <div className="flex justify-end space-x-3 pt-4 border-t">
     <button
