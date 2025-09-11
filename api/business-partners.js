@@ -1,6 +1,6 @@
 // api/business-partners.js - Business Partner API
 import jwt from 'jsonwebtoken';
-import { kv } from '@vercel/kv';
+import { getCompanyKV } from './utils/kv.js';
 
 const BUSINESS_PARTNERS_KEY = 'e-business-partners';
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -34,6 +34,8 @@ export default async function handler(req, res) {
       companyId: decoded.companyId || 'all',
       isSupport: decoded.isSupport || false
     };
+
+    var kv = getCompanyKV(user.companyId);
 
     console.log('✅ Auth successful for:', user.email);
 

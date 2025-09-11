@@ -1,5 +1,5 @@
 // api/invoices-db.js - Mit Authentifizierung
-import { kv } from '@vercel/kv';
+import { getCompanyKV } from './utils/kv.js';
 import { authenticateUser, hasPermission, logSecurityEvent } from './middleware/authMiddleware.js';
 
 const INVOICES_KEY = 'e-invoices';
@@ -31,6 +31,8 @@ export default async function handler(req, res) {
   }
 
   const { user } = authResult;
+  const kv = getCompanyKV(user.companyId);
+
 
   try {
     // GET - Alle Rechnungen aus Datenbank laden
@@ -50,9 +52,9 @@ export default async function handler(req, res) {
       }
 
       const invoices = await kv.get(INVOICES_KEY) || [];
-      
+
       // Support kann alle Rechnungen sehen, normale User nur ihre eigenen
-      const filteredInvoices = user.isSupport || user.companyId === 'all' 
+      const filteredInvoices = user.isSupport || user.companyId === 'all'
         ? invoices
         : invoices.filter(invoice => invoice.companyId === user.companyId);
 
@@ -62,7 +64,7 @@ export default async function handler(req, res) {
         success: true,
         recordCount: filteredInvoices.length
       });
-      
+
       return res.status(200).json({
         success: true,
         data: filteredInvoices,
@@ -70,7 +72,7 @@ export default async function handler(req, res) {
         source: 'database'
       });
     }
-    
+
     // POST - Neue Rechnung in Datenbank speichern
     if (req.method === 'POST') {
       // 🔒 BERECHTIGUNG PRÜFEN
@@ -88,7 +90,7 @@ export default async function handler(req, res) {
       }
 
       const { sender, receiver, amount, currency = 'EUR', format = 'XRechnung' } = req.body;
-      
+
       if (!sender || !receiver || !amount) {
         return res.status(400).json({
           success: false,
@@ -98,7 +100,7 @@ export default async function handler(req, res) {
 
       // Aktuelle Rechnungen laden
       const currentInvoices = await kv.get(INVOICES_KEY) || [];
-      
+
       const newInvoice = {
         id: `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         sender,
@@ -115,10 +117,10 @@ export default async function handler(req, res) {
         createdBy: user.id, // 🔒 Ersteller tracken
         createdAt: new Date().toISOString()
       };
-      
+
       // Neue Rechnung am Anfang hinzufügen
       const updatedInvoices = [newInvoice, ...currentInvoices];
-      
+
       // In Datenbank speichern
       await kv.set(INVOICES_KEY, updatedInvoices);
 
@@ -128,13 +130,13 @@ export default async function handler(req, res) {
         success: true,
         recordId: newInvoice.id
       });
-      
+
       // Simuliere E-Rechnung Verarbeitung (nach 3 Sekunden)
       setTimeout(async () => {
         try {
           const currentData = await kv.get(INVOICES_KEY) || [];
           const index = currentData.findIndex(inv => inv.id === newInvoice.id);
-          
+
           if (index !== -1) {
             currentData[index] = {
               ...currentData[index],
@@ -143,14 +145,14 @@ export default async function handler(req, res) {
               sentAt: Math.random() > 0.15 ? new Date().toISOString() : null,
               error: Math.random() > 0.15 ? null : 'Fehler bei der Übermittlung'
             };
-            
+
             await kv.set(INVOICES_KEY, currentData);
           }
         } catch (error) {
           console.error('Fehler bei der Nachverarbeitung:', error);
         }
       }, 3000);
-      
+
       return res.status(201).json({
         success: true,
         data: newInvoice,
@@ -177,7 +179,7 @@ export default async function handler(req, res) {
       const { id } = req.query;
       const currentInvoices = await kv.get(INVOICES_KEY) || [];
       const index = currentInvoices.findIndex(inv => inv.id === id);
-      
+
       if (index === -1) {
         return res.status(404).json({
           success: false,
@@ -200,7 +202,7 @@ export default async function handler(req, res) {
           error: 'Keine Berechtigung für diese Rechnung'
         });
       }
-      
+
       const deleted = currentInvoices.splice(index, 1)[0];
       await kv.set(INVOICES_KEY, currentInvoices);
 
@@ -210,19 +212,19 @@ export default async function handler(req, res) {
         success: true,
         recordId: id
       });
-      
+
       return res.status(200).json({
         success: true,
         data: deleted,
         message: 'Rechnung aus Datenbank gelöscht'
       });
     }
-    
+
     return res.status(405).json({
       success: false,
       error: 'Method not allowed'
     });
-    
+
   } catch (error) {
     console.error('❌ Invoice DB error:', error);
 
