@@ -10,6 +10,7 @@ const AppContext = createContext();
 // Initial State
 const initialState = {
   // Daten
+  notification: null,
   invoices: [],
   customers: [],
   businessPartners: [],
@@ -66,6 +67,10 @@ const ActionTypes = {
 
   SET_EDITING_BUSINESS_PARTNER: 'SET_EDITING_BUSINESS_PARTNER',  // NEU
 
+  // NEU: Notification Actions
+  SET_NOTIFICATION: 'SET_NOTIFICATION',
+  CLEAR_NOTIFICATION: 'CLEAR_NOTIFICATION',
+
   // Data Actions
   SET_INVOICES: 'SET_INVOICES',
   SET_CUSTOMERS: 'SET_CUSTOMERS',
@@ -94,6 +99,19 @@ const ActionTypes = {
 // Reducer Function
 function appReducer(state, action) {
   switch (action.type) {
+
+    // NEU: Notification Cases
+    case ActionTypes.SET_NOTIFICATION:
+      return {
+        ...state,
+        notification: action.payload
+      };
+      
+    case ActionTypes.CLEAR_NOTIFICATION:
+      return {
+        ...state,
+        notification: null
+      };
 
     case ActionTypes.SET_BUSINESS_PARTNERS:
       return {
@@ -258,7 +276,7 @@ export function AppProvider({ children }) {
   const loadBusinessPartners = async () => {
     try {
       dispatch({ type: ActionTypes.SET_LOADING, payload: true });
-      const companyId = authService.getCurrentUser()?.companyId;
+      const companyId = authService.getCompanyId();
       const businessPartners = await businessPartnerService.getAll(companyId);
       dispatch({
         type: ActionTypes.SET_BUSINESS_PARTNERS,
@@ -284,6 +302,46 @@ export function AppProvider({ children }) {
 
   // Actions Object
   const actions = {
+
+    // NEU: Notification Actions
+    showNotification: (type, message, details = null) => {
+      dispatch({
+        type: ActionTypes.SET_NOTIFICATION,
+        payload: { type, message, details }
+      });
+    },
+    
+    showError: (message, details = null) => {
+      dispatch({
+        type: ActionTypes.SET_NOTIFICATION,
+        payload: { type: 'error', message, details }
+      });
+    },
+    
+    showWarning: (message, details = null) => {
+      dispatch({
+        type: ActionTypes.SET_NOTIFICATION,
+        payload: { type: 'warning', message, details }
+      });
+    },
+    
+    showSuccess: (message, details = null) => {
+      dispatch({
+        type: ActionTypes.SET_NOTIFICATION,
+        payload: { type: 'success', message, details }
+      });
+    },
+    
+    showInfo: (message, details = null) => {
+      dispatch({
+        type: ActionTypes.SET_NOTIFICATION,
+        payload: { type: 'info', message, details }
+      });
+    },
+    
+    clearNotification: () => {
+      dispatch({ type: ActionTypes.CLEAR_NOTIFICATION });
+    },
 
     // === BUSINESS PARTNER ACTIONS ===
     loadBusinessPartners,

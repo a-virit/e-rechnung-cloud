@@ -1,5 +1,7 @@
 // src/context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import authService from '../services/authService.js';
+import { useApp } from '../context/AppContext';
 
 const AuthContext = createContext();
 
@@ -12,6 +14,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  const { actions } = useApp();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
@@ -20,15 +23,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const savedToken = localStorage.getItem('token');
-        const savedUser = localStorage.getItem('user');
-        
+        const savedToken = authService.getToken();
+        const savedUser = authService.getCurrentUser();
+
         if (savedToken && savedUser) {
-          // Gespeicherte Daten laden
-          const userData = JSON.parse(savedUser);
           setToken(savedToken);
-          setUser(userData);
-          
+          setUser(savedUser);
+
           // Token validieren
           const isValid = await validateStoredToken(savedToken);
           if (!isValid) {
@@ -59,8 +60,8 @@ export const AuthProvider = ({ children }) => {
   const validateStoredToken = async (tokenToValidate) => {
     try {
       const response = await fetch('/api/auth/validate', {
-        headers: { 
-          'Authorization': `Bearer ${tokenToValidate}` 
+        headers: {
+          'Authorization': `Bearer ${tokenToValidate}`
         }
       });
 
@@ -81,8 +82,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json' 
+        headers: {
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(credentials)
       });
@@ -91,26 +92,26 @@ export const AuthProvider = ({ children }) => {
 
       if (result.success) {
         const { token: newToken, user: userData } = result.data;
-        
-        // Token und User speichern
-        localStorage.setItem('token', newToken);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
+
+        // Token und User speichern (inkl. companyId)
+        const storedUser = { ...userData };
+        authService.setAuthData(newToken, storedUser);
+
         setToken(newToken);
-        setUser(userData);
-        
+        setUser(storedUser);
+
         return { success: true };
       } else {
-        return { 
-          success: false, 
-          error: result.error || 'Anmeldung fehlgeschlagen' 
+        return {
+          success: false,
+          error: result.error || 'Anmeldung fehlgeschlagen'
         };
       }
     } catch (error) {
       console.error('Login error:', error);
-      return { 
-        success: false, 
-        error: 'Verbindungsfehler. Überprüfen Sie Ihre Internetverbindung.' 
+      return {
+        success: false,
+        error: 'Verbindungsfehler. Überprüfen Sie Ihre Internetverbindung.'
       };
     }
   };
@@ -120,8 +121,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json' 
+        headers: {
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(userData)
       });
@@ -135,16 +136,16 @@ export const AuthProvider = ({ children }) => {
           password: userData.password
         });
       } else {
-        return { 
-          success: false, 
-          error: result.error || 'Registrierung fehlgeschlagen' 
+        return {
+          success: false,
+          error: result.error || 'Registrierung fehlgeschlagen'
         };
       }
     } catch (error) {
       console.error('Registration error:', error);
-      return { 
-        success: false, 
-        error: 'Verbindungsfehler. Überprüfen Sie Ihre Internetverbindung.' 
+      return {
+        success: false,
+        error: 'Verbindungsfehler. Überprüfen Sie Ihre Internetverbindung.'
       };
     }
   };
@@ -155,13 +156,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
-    
+
     // Optional: Server über Logout informieren
     if (token) {
       fetch('/api/auth/logout', {
         method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}` 
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
       }).catch(error => {
         console.warn('Logout notification failed:', error);
@@ -173,7 +174,7 @@ export const AuthProvider = ({ children }) => {
   const setupSessionTimeout = () => {
     const TIMEOUT_MINUTES = 30;
     const WARNING_MINUTES = 5; // Warnung 5 Min vor Ablauf
-    
+
     let timeoutId;
     let warningId;
     let lastActivity = Date.now();
@@ -182,7 +183,7 @@ export const AuthProvider = ({ children }) => {
       lastActivity = Date.now();
       clearTimeout(timeoutId);
       clearTimeout(warningId);
-      
+
       // Warnung vor Ablauf
       warningId = setTimeout(() => {
         const remaining = Math.ceil((lastActivity + (TIMEOUT_MINUTES * 60 * 1000) - Date.now()) / 60000);
@@ -190,13 +191,13 @@ export const AuthProvider = ({ children }) => {
           const extendSession = window.confirm(
             `Ihre Sitzung läuft in ${remaining} Minute(n) ab.\n\nMöchten Sie die Sitzung verlängern?`
           );
-          
+
           if (extendSession) {
             resetTimers(); // Session verlängern
           }
         }
       }, (TIMEOUT_MINUTES - WARNING_MINUTES) * 60 * 1000);
-      
+
       // Automatischer Logout
       timeoutId = setTimeout(() => {
         alert('Ihre Sitzung ist abgelaufen. Sie werden automatisch abgemeldet.');
@@ -206,7 +207,7 @@ export const AuthProvider = ({ children }) => {
 
     // Activity-Listener
     const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    
+
     const handleActivity = () => {
       const now = Date.now();
       // Nur alle 30 Sekunden Timer zurücksetzen (Performance)
@@ -236,18 +237,18 @@ export const AuthProvider = ({ children }) => {
     if (!user || !user.permissions) {
       return false;
     }
-    
+
     // Support hat immer alle Rechte
     if (user.role === 'support') {
       return true;
     }
-    
+
     // Standard-Berechtigungsprüfung
     const resourcePermissions = user.permissions[resource];
     if (!resourcePermissions) {
       return false;
     }
-    
+
     return resourcePermissions[action] === true;
   };
 
@@ -256,16 +257,16 @@ export const AuthProvider = ({ children }) => {
     if (!user || !user.role) {
       return false;
     }
-    
+
     const roleHierarchy = {
       user: 1,
       admin: 2,
       support: 3
     };
-    
+
     const userLevel = roleHierarchy[user.role] || 0;
     const requiredLevel = roleHierarchy[requiredRole] || 999;
-    
+
     return userLevel >= requiredLevel;
   };
 
@@ -292,7 +293,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const response = await fetch(url, config);
-    
+
     // Token abgelaufen
     if (response.status === 401) {
       handleLogout();
@@ -309,20 +310,20 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     isAuthenticated: !!user && !!token,
-    
+
     // Auth Functions
     login,
     register,
     logout: handleLogout,
-    
+
     // Permission Functions
     hasPermission,
     hasRole,
-    
+
     // Utility Functions
     updateUserData,
     authenticatedFetch,
-    
+
     // User Info Getters
     isAdmin: user?.role === 'admin',
     isSupport: user?.role === 'support',
@@ -346,7 +347,7 @@ export const AuthProvider = ({ children }) => {
 // Hook für authenticated API calls
 export const useAuthenticatedApi = () => {
   const { authenticatedFetch, isAuthenticated } = useAuth();
-  
+
   return {
     get: (url) => authenticatedFetch(url),
     post: (url, data) => authenticatedFetch(url, {
@@ -354,7 +355,7 @@ export const useAuthenticatedApi = () => {
       body: JSON.stringify(data)
     }),
     put: (url, data) => authenticatedFetch(url, {
-      method: 'PUT', 
+      method: 'PUT',
       body: JSON.stringify(data)
     }),
     delete: (url) => authenticatedFetch(url, {
@@ -367,24 +368,24 @@ export const useAuthenticatedApi = () => {
 // Hook für Permission-Checks
 export const usePermissions = () => {
   const { hasPermission, hasRole, user } = useAuth();
-  
+
   return {
     canCreateInvoices: hasPermission('invoices', 'create'),
     canEditInvoices: hasPermission('invoices', 'edit'),
     canDeleteInvoices: hasPermission('invoices', 'delete'),
     canSendInvoices: hasPermission('invoices', 'send'),
-    
+
     canCreateCustomers: hasPermission('customers', 'create'),
     canEditCustomers: hasPermission('customers', 'edit'),
     canDeleteCustomers: hasPermission('customers', 'delete'),
-    
+
     canManageUsers: hasPermission('users', 'create'),
     canEditConfig: hasPermission('config', 'edit'),
     canViewReports: hasPermission('reports', 'view'),
-    
+
     isAdmin: hasRole('admin'),
     isSupport: hasRole('support'),
-    
+
     user
   };
 };

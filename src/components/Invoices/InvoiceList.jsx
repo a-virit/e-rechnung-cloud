@@ -142,10 +142,10 @@ const InvoiceList = () => {
     try {
       const result = await actions.downloadInvoicePDF(invoiceId, invoiceNumber);
       if (!result.success) {
-        alert('PDF-Download fehlgeschlagen: ' + result.error);
+        actions.showError('PDF-Download fehlgeschlagen: ' + result.error);
       }
     } catch (error) {
-      alert('PDF-Download fehlgeschlagen: ' + error.message);
+      actions.showError('PDF-Download fehlgeschlagen: ' + error.message);
     }
   };
 

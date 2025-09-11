@@ -86,9 +86,9 @@ const ConfigModal = () => {
     try {
       await actions.updateConfig(configData);
       handleClose();
-      alert('Konfiguration erfolgreich gespeichert!');
+      actions.showError('Konfiguration erfolgreich gespeichert!');
     } catch (error) {
-      alert('Fehler beim Speichern: ' + error.message);
+      actions.showError('Fehler beim Speichern: ' + error.message);
       console.error('Config save error:', error);
     } finally {
       setIsSubmitting(false);

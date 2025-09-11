@@ -5,6 +5,7 @@ import {
   Smartphone, Globe, Database, Activity, Users, CreditCard,
   Download, Upload, Trash2, Copy, RefreshCw, Calendar
 } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 
 const ProfileSystemSettings = () => {
   // State Management
@@ -93,6 +94,8 @@ const ProfileSystemSettings = () => {
     });
   }, [user.email]);
 
+  const { actions } = useApp();
+
   // Tabs Configuration
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User, adminOnly: false },
@@ -106,12 +109,12 @@ const ProfileSystemSettings = () => {
   // Password Change Handler
   const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Neue Passwörter stimmen nicht überein');
+      actions.showError('Neue Passwörter stimmen nicht überein');
       return;
     }
 
     if (passwordData.newPassword.length < security.passwordPolicy.minLength) {
-      alert(`Passwort muss mindestens ${security.passwordPolicy.minLength} Zeichen haben`);
+      actions.showError(`Passwort muss mindestens ${security.passwordPolicy.minLength} Zeichen haben`);
       return;
     }
 
@@ -127,13 +130,13 @@ const ProfileSystemSettings = () => {
       
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setShowPasswordForm(false);
-      alert('Passwort erfolgreich geändert');
+      actions.showSuccess('Passwort erfolgreich geändert');
     } catch (error) {
       logSecurityEvent('PASSWORD_CHANGE_FAILED', {
         userId: user.id,
         error: error.message
       });
-      alert('Fehler beim Ändern des Passworts');
+      actions.showError('Fehler beim Ändern des Passworts');
     } finally {
       setSaving(false);
     }
@@ -155,9 +158,9 @@ const ProfileSystemSettings = () => {
         success: true
       });
       
-      alert(newStatus ? '2FA aktiviert' : '2FA deaktiviert');
+      actions.showInfo(newStatus ? '2FA aktiviert' : '2FA deaktiviert');
     } catch (error) {
-      alert('Fehler beim Ändern der 2FA-Einstellungen');
+      actions.showError('Fehler beim Ändern der 2FA-Einstellungen');
     } finally {
       setSaving(false);
     }
@@ -177,9 +180,9 @@ const ProfileSystemSettings = () => {
       });
       
       setUnsavedChanges(false);
-      alert(`${section}-Einstellungen gespeichert`);
+      actions.showInfo(`${section}-Einstellungen gespeichert`);
     } catch (error) {
-      alert('Fehler beim Speichern');
+      actions.showError('Fehler beim Speichern');
     } finally {
       setSaving(false);
     }
@@ -751,7 +754,7 @@ const ProfileSystemSettings = () => {
         
         <div className="mt-4 text-center">
           <button 
-            onClick={() => alert('Vollständiger Sicherheitsscan wird durchgeführt...')}
+            onClick={() => actions.showInfo('Vollständiger Sicherheitsscan wird durchgeführt...')}
             className="text-blue-600 hover:text-blue-800 text-sm font-medium"
           >
             Vollständigen Sicherheitsscan durchführen
@@ -1140,7 +1143,7 @@ const ProfileSystemSettings = () => {
             onClick={() => {
               if (window.confirm('Möchten Sie wirklich alle Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden!')) {
                 logSecurityEvent('DATA_DELETION_REQUESTED', { userId: user.id });
-                alert('Datenlöschung wird vom Administrator geprüft');
+                actions.showInfo('Datenlöschung wird vom Administrator geprüft');
               }
             }}
             className="bg-red-600 text-white px-4 py-3 rounded-md hover:bg-red-700 flex items-center justify-center"

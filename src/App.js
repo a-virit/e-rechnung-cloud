@@ -1,5 +1,6 @@
 // src/App.js - Mit vollständiger Authentication
 import React, { useState } from 'react';
+import NotificationBar from './components/Layout/NotificationBar';
 import { AuthProvider } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
@@ -25,6 +26,8 @@ const App = () => {
     </AuthProvider>
   );
 };
+
+// In Ihrer App.js - Ersetzen Sie NUR die AuthenticatedApp Komponente:
 
 const AuthenticatedApp = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -55,12 +58,18 @@ const AuthenticatedApp = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header setActiveTab={setActiveTab} />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* NEU: Sticky Container für Header und Navigation */}
+      <div className="sticky top-0 z-40 bg-white shadow-md">
+        <Header setActiveTab={setActiveTab} />
         <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+      </div>
+      
+      {/* Content - kein padding-top nötig bei sticky */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderContent()}
       </div>
+      
+      {/* Modals bleiben unverändert */}
       <ConfigModal />
       <InvoiceModal />
       <BusinessPartnerModal />

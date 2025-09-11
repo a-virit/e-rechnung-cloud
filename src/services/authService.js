@@ -6,6 +6,14 @@ class AuthService {
     this.userKey = 'user';   // Gleich wie in AuthContext
   }
 
+  // Token und Benutzer speichern
+  setAuthData(token, user) {
+    localStorage.setItem(this.tokenKey, token);
+    if (user) {
+      localStorage.setItem(this.userKey, JSON.stringify(user));
+    }
+  }
+
   // Token abrufen
   getToken() {
     return localStorage.getItem(this.tokenKey);
@@ -15,12 +23,17 @@ class AuthService {
   getCurrentUser() {
     const userStr = localStorage.getItem(this.userKey);
     if (!userStr) return null;
-    
+
     try {
       return JSON.parse(userStr);
     } catch {
       return null;
     }
+  }
+
+  // Aktuelle CompanyId
+  getCompanyId() {
+    return this.getCurrentUser()?.companyId || null;
   }
 
   // Logout (redirect zur Login-Seite)
@@ -34,14 +47,14 @@ class AuthService {
   isAuthenticated() {
     const token = this.getToken();
     const user = this.getCurrentUser();
-    
+
     if (!token || !user) return false;
 
     // Einfache Token-Validierung
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const now = Date.now() / 1000;
-      
+
       return payload.exp > now;
     } catch {
       return false;
@@ -58,14 +71,14 @@ class AuthService {
 
     // Standard-Berechtigungen je nach Rolle
     const permissions = {
-      admin: ['*'], 
+      admin: ['*'],
       user: ['customers:read', 'customers:write', 'invoices:read', 'invoices:write', 'config:read'],
       support_readonly: ['customers:read', 'invoices:read', 'config:read'],
       guest: ['invoices:read']
     };
 
     const userPermissions = permissions[user.role] || [];
-    
+
     return userPermissions.includes('*') || userPermissions.includes(permission);
   }
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Check, AlertCircle, Copy, ExternalLink, Settings, BarChart3, Send, Eye, EyeOff } from 'lucide-react';
 
+const { actions } = useApp();
+
 const CompleteEmailConfiguration = () => {
   const [activeTab, setActiveTab] = useState('config');
   const [emailConfig, setEmailConfig] = useState({
@@ -84,7 +86,7 @@ const CompleteEmailConfiguration = () => {
   const copyDNSRecord = () => {
     const record = `_mail-auth.${domainStatus.domain} TXT "${domainStatus.dnsRecordValue}"`;
     navigator.clipboard.writeText(record);
-    alert('DNS-Record in Zwischenablage kopiert!');
+    actions.showError('DNS-Record in Zwischenablage kopiert!');
   };
 
   // Domain-Verifikation
@@ -96,9 +98,9 @@ const CompleteEmailConfiguration = () => {
       const success = Math.random() > 0.3;
       if (success) {
         setDomainStatus(prev => ({ ...prev, verified: true, checking: false }));
-        alert(`Domain ${domainStatus.domain} erfolgreich verifiziert!`);
+        actions.showError(`Domain ${domainStatus.domain} erfolgreich verifiziert!`);
       } else {
-        alert('Domain-Verifikation fehlgeschlagen. Bitte prüfen Sie den DNS-Record.');
+        actions.showError('Domain-Verifikation fehlgeschlagen. Bitte prüfen Sie den DNS-Record.');
         setDomainStatus(prev => ({ ...prev, checking: false }));
       }
     } catch (error) {
@@ -125,15 +127,15 @@ const CompleteEmailConfiguration = () => {
   // Test-E-Mail senden
   const sendTestEmail = async () => {
     if (!domainStatus.verified || Object.keys(errors).length > 0) {
-      alert('Bitte vervollständigen Sie die Konfiguration und verifizieren Sie die Domain');
+      actions.showError('Bitte vervollständigen Sie die Konfiguration und verifizieren Sie die Domain');
       return;
     }
     try {
-      alert(`Test-E-Mail wird an ${emailConfig.senderEmail} gesendet...`);
+      actions.showInfo(`Test-E-Mail wird an ${emailConfig.senderEmail} gesendet...`);
       await new Promise(resolve => setTimeout(resolve, 1500));
-      alert('✅ Test-E-Mail erfolgreich versendet!');
+      actions.showSuccess('✅ Test-E-Mail erfolgreich versendet!');
     } catch (error) {
-      alert('❌ Test-E-Mail fehlgeschlagen');
+      actions.showError('❌ Test-E-Mail fehlgeschlagen');
     }
   };
 
@@ -143,9 +145,9 @@ const CompleteEmailConfiguration = () => {
     setSaving(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      alert('✅ E-Mail-Konfiguration erfolgreich gespeichert!');
+      actions.showSuccess('✅ E-Mail-Konfiguration erfolgreich gespeichert!');
     } catch (error) {
-      alert('❌ Fehler beim Speichern');
+      actions.showError('❌ Fehler beim Speichern');
     } finally {
       setSaving(false);
     }

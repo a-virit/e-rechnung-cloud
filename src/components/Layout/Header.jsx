@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FileText, User, LogOut, Settings, Shield, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useApp } from '../../context/AppContext';
 
 const Header = ({ setActiveTab }) => {
   const { user, logout, hasRole } = useAuth();
@@ -56,6 +57,7 @@ const Header = ({ setActiveTab }) => {
       .substring(0, 2)
       .toUpperCase();
   };
+  const { actions } = useApp();
 
   return (
     <header className="bg-white border-b border-gray-200 shadow-sm relative">
@@ -183,7 +185,7 @@ const Header = ({ setActiveTab }) => {
                           className="w-full text-left text-sm text-gray-600 hover:text-purple-600 py-2 px-2 hover:bg-purple-50 rounded transition-colors"
                           onClick={() => {
                             setShowUserMenu(false);
-                            alert('System-Diagnose wird implementiert...');
+                            actions.showInfo('System-Diagnose wird implementiert...');
                           }}
                         >
                           🔍 System-Diagnose
@@ -193,7 +195,7 @@ const Header = ({ setActiveTab }) => {
                           className="w-full text-left text-sm text-gray-600 hover:text-purple-600 py-2 px-2 hover:bg-purple-50 rounded transition-colors"
                           onClick={() => {
                             setShowUserMenu(false);
-                            alert('Performance-Monitor wird implementiert...');
+                            actions.showInfo('Performance-Monitor wird implementiert...');
                           }}
                         >
                           📊 Performance-Monitor
@@ -203,7 +205,7 @@ const Header = ({ setActiveTab }) => {
                           className="w-full text-left text-sm text-gray-600 hover:text-purple-600 py-2 px-2 hover:bg-purple-50 rounded transition-colors"
                           onClick={() => {
                             setShowUserMenu(false);
-                            alert('Multi-Tenant-View wird implementiert...');
+                            actions.showInfo('Multi-Tenant-View wird implementiert...');
                           }}
                         >
                           🏢 Alle Unternehmen

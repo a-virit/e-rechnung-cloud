@@ -293,12 +293,12 @@ const InvoiceModal = () => {
 
       if (result.success) {
         handleClose();
-        alert('Rechnung erfolgreich erstellt!');
+        actions.showSuccess('Rechnung erfolgreich erstellt!');
       } else {
-        alert('Fehler beim Erstellen: ' + result.error);
+        actions.showError('Fehler beim Erstellen: ' + result.error);
       }
     } catch (error) {
-      alert('Fehler beim Erstellen: ' + error.message);
+      actions.showError('Fehler beim Erstellen: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }

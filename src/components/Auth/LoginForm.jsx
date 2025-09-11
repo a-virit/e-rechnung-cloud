@@ -1,6 +1,7 @@
 // src/components/Auth/LoginForm.jsx
 import React, { useState } from 'react';
 import { Eye, EyeOff, LogIn, Building, UserPlus } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 
 const LoginForm = ({ onLogin, onRegister, loading = false, error = null }) => {
   const [formData, setFormData] = useState({
@@ -18,19 +19,19 @@ const LoginForm = ({ onLogin, onRegister, loading = false, error = null }) => {
     name: '',
     companyName: ''
   });
-
+const { actions } = useApp();
   const handleSubmit = (e) => {
     e.preventDefault();
     
     if (isRegistering) {
       // Registrierung validieren
       if (registerData.password !== registerData.confirmPassword) {
-        alert('Passwörter stimmen nicht überein');
+        actions.showError('Passwörter stimmen nicht überein');
         return;
       }
       
       if (registerData.password.length < 8) {
-        alert('Passwort muss mindestens 8 Zeichen haben');
+        actions.showError('Passwort muss mindestens 8 Zeichen haben');
         return;
       }
       

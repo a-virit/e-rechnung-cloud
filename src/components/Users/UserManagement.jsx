@@ -5,6 +5,7 @@ import {
   X, Eye, EyeOff, CheckCircle, AlertCircle 
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useApp } from '../../context/AppContext';
 
 const UserManagement = () => {
   const { user: currentUser } = useAuth();
@@ -12,6 +13,7 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const { actions } = useApp();
 
   // Benutzer laden
   useEffect(() => {

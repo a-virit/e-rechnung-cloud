@@ -235,12 +235,12 @@ const BusinessPartnerModal = () => {
         console.log('Business Partner erfolgreich erstellt!');
       } else {
         const errorMessage = result?.error || 'Fehler beim Speichern';
-        alert('Fehler: ' + errorMessage);
+        actions.showError('Fehler: ' + errorMessage);
       }
 
     } catch (error) {
       console.error('Business Partner save error:', error);
-      alert('Fehler beim Speichern: ' + error.message);
+      actions.showError('Fehler beim Speichern: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }

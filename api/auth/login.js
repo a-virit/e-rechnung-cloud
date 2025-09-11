@@ -41,10 +41,11 @@ if (email === process.env.SUPPORT_EMAIL && password === process.env.SUPPORT_PASS
       user: {
         id: 'support-admin',
         email: process.env.SUPPORT_EMAIL,
-        name: 'Support Administrator', 
+        name: 'Support Administrator',
         role: 'admin', // ⬅️ Auch hier
         permissions: ['*'],
-        isSupport: true
+        isSupport: true,
+        companyId: 'all',
       }
     }
   });
