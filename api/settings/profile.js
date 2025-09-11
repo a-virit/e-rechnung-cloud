@@ -1,5 +1,5 @@
 // api/settings/profile.js
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken } from '../middleware/authMiddleware.js';
 
 export default async function handler(req, res) {
   try {

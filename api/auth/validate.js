@@ -1,6 +1,6 @@
 // api/auth/validate.js
 import jwt from 'jsonwebtoken';
-import { authenticateUser } from '../middleware/authMiddleware';
+import { authenticateUser } from '../middleware/authMiddleware.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

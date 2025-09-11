@@ -1,8 +1,8 @@
 // src/context/AppContext.js
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { invoiceService, customerService, configService, businessPartnerService } from '../services';
-import authService from '../services/authService';
-import { calculateInvoiceStats } from '../utils/statusHelpers';
+import authService from '../services/authService.js';
+import { calculateInvoiceStats } from '../utils/statusHelpers.js';
 
 // Context erstellen
 const AppContext = createContext();
