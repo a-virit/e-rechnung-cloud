@@ -7,17 +7,12 @@ import Header from './components/Layout/Header';
 import Navigation from './components/Layout/Navigation';
 import Dashboard from './components/Dashboard/Dashboard';
 import InvoiceList from './components/Invoices/InvoiceList';
-//import CustomerManagement from './components/Customers/CustomerManagement';
 import UserManagement from './components/Users/UserManagement';
-//import CustomerModal from './components/Customers/CustomerModal';
 import ConfigModal from './components/Config/ConfigModal';
 import InvoiceModal from './components/Invoices/InvoiceModal';
 import ProfileSystemSettings from './components/Settings/ProfileSystemSettings';
 import BusinessPartnerModal from './components/BusinessPartners/BusinessPartnerModal';
 import BusinessPartnerManagement from './components/BusinessPartners/BusinessPartnerManagement'; // NEU
-
-
-
 
 const App = () => {
   return (
@@ -40,10 +35,9 @@ const AuthenticatedApp = () => {
         return <Dashboard />;
         
       case 'invoices':
-        // 🔧 KORRIGIERT: Nur Leseberechtigung erforderlich für die Liste
         return <InvoiceList />;
         
-      case 'business-partners':  // NEU
+      case 'business-partners':
         return <BusinessPartnerManagement />;
         
       case 'users':
@@ -52,7 +46,6 @@ const AuthenticatedApp = () => {
             <UserManagement />
           </ProtectedRoute>
         );
-      // 🆕 NEUE ROUTE
       case 'settings':
         return <ProfileSystemSettings />;
       default:
