@@ -1,6 +1,7 @@
 // src/context/AppContext.js
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { invoiceService, customerService, configService, businessPartnerService } from '../services';
+import authService from '../services/authService';
 import { calculateInvoiceStats } from '../utils/statusHelpers';
 
 // Context erstellen
@@ -257,7 +258,8 @@ export function AppProvider({ children }) {
   const loadBusinessPartners = async () => {
     try {
       dispatch({ type: ActionTypes.SET_LOADING, payload: true });
-      const businessPartners = await businessPartnerService.getAll();
+      const companyId = authService.getCurrentUser()?.companyId;
+      const businessPartners = await businessPartnerService.getAll(companyId);
       dispatch({
         type: ActionTypes.SET_BUSINESS_PARTNERS,
         payload: businessPartners

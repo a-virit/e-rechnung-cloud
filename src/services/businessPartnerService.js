@@ -52,9 +52,10 @@ class BusinessPartnerService {
     }
   }
 
-  async getAll() {
+    async getAll(companyId) {
     try {
-      const response = await fetch(`${this.baseURL}/api/business-partners`, {
+      const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+      const response = await fetch(`${this.baseURL}/api/business-partners${query}`, {
         method: 'GET',
         headers: this.getAuthHeaders()
       });
