@@ -68,3 +68,20 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+## Mandanten Provisionieren
+
+Neue Mandanten erhalten eine eigene KV-Namespace bzw. Datenbank. Ein Provisioning-Skript erleichtert das Anlegen:
+
+```bash
+node scripts/provisionTenant.js <companyId>
+```
+
+Das Skript erzeugt die Namespace `e-company-<companyId>` und gibt die erforderlichen Umgebungsvariablen aus:
+
+```
+DB_HOST_<companyId>
+DB_NAME_<companyId>
+```
+
+Diese Variablen müssen im Deployment gesetzt werden, damit die Backend-Routen anhand des `companyId` die passende Verbindung aufbauen.

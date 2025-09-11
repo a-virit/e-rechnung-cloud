@@ -1,9 +1,9 @@
 // api/business-partners.js - Business Partner API
-import jwt from 'jsonwebtoken';
+import { authenticateUser } from './middleware/authMiddleware.js';
 import { getCompanyKV } from './utils/kv.js';
 
 const BUSINESS_PARTNERS_KEY = 'e-business-partners';
-const JWT_SECRET = process.env.JWT_SECRET;
+//const JWT_SECRET = process.env.JWT_SECRET;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -13,49 +13,30 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-
-  // Einfache Token-Validierung (wie bei customers.js)
-  try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        error: 'Kein Token vorhanden'
-      });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = {
-      id: decoded.userId,
-      email: decoded.email,
-      role: decoded.role,
-      companyId: decoded.companyId || 'all',
-      isSupport: decoded.isSupport || false
-    };
-
-    var kv = getCompanyKV(user.companyId);
-
-    console.log('✅ Auth successful for:', user.email);
-
-  } catch (error) {
-    console.error('❌ Auth failed:', error.message);
-    return res.status(401).json({
+  const authResult = await authenticateUser(req);
+  if (!authResult.success) {
+    return res.status(authResult.status || 401).json({
       success: false,
-      error: 'Ungültiger Token'
+      error: authResult.error
     });
   }
+
+   const { user } = authResult;
+  const kv = getCompanyKV(user.companyId);
 
   try {
     // GET - Alle Business Partner laden
     if (req.method === 'GET') {
       const businessPartners = await kv.get(BUSINESS_PARTNERS_KEY) || [];
+      const { companyId } = req.query;
+      const filteredPartners = companyId
+        ? businessPartners.filter(bp => bp.companyId === companyId)
+        : businessPartners;
 
       return res.status(200).json({
         success: true,
-        data: businessPartners,
-        count: businessPartners.length
+        data: filteredPartners,
+        count: filteredPartners.length
       });
     }
 
@@ -124,9 +105,9 @@ export default async function handler(req, res) {
         roles: createRolesFromSelection(selectedRoles || ['CUSTOMER'], roleAddresses || {}),
 
         contacts: [], // Leer starten, später erweitern
-        companyId: 'default',
+        companyId: user.companyId,
         createdAt: new Date().toISOString(),
-        createdBy: 'current-user'
+        createdBy: user.id
       };
 
       const updatedPartners = [newPartner, ...currentPartners];
@@ -167,7 +148,7 @@ export default async function handler(req, res) {
           ...currentPartners[partnerIndex],
           status: 'INACTIVE',
           updatedAt: new Date().toISOString(),
-          updatedBy: 'current-user'
+          updatedBy: user.id
         };
 
         await kv.set(BUSINESS_PARTNERS_KEY, currentPartners);
@@ -226,7 +207,7 @@ export default async function handler(req, res) {
         externalBusinessPartnerNumber: externalBusinessPartnerNumber || '',
         roles: createRolesFromSelection(selectedRoles || ['CUSTOMER'], roleAddresses || {}),
         updatedAt: new Date().toISOString(),
-        updatedBy: 'current-user'
+        updatedBy: user.id
       };
 
       await kv.set(BUSINESS_PARTNERS_KEY, currentPartners);
