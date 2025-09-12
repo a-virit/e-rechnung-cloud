@@ -14,14 +14,13 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
   const authResult = await authenticateUser(req);
-  if (!authResult.success) {
-    return res.status(authResult.status || 401).json({
-      success: false,
-      error: authResult.error
-    });
+  if (!authResult || authResult.status !== 200) {
+    return res
+      .status(authResult?.status || 401)
+      .json({ error: authResult?.message || 'Unauthorized' });
   }
 
-   const { user } = authResult;
+  const { user } = authResult;
   const kv = getCompanyKV(user.companyId);
 
   try {

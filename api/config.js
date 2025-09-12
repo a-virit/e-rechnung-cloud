@@ -54,7 +54,7 @@ export default async function handler(req, res) {
 
   // 🔒 AUTHENTIFIZIERUNG PRÜFEN
   const authResult = await authenticateUser(req);
-  if (!authResult.success) {
+  if (!authResult || authResult.status !== 200) {
     logSecurityEvent('UNAUTHORIZED_ACCESS', null, {
       ip: req.headers['x-forwarded-for'] || 'unknown',
       resource: 'config',
@@ -62,10 +62,9 @@ export default async function handler(req, res) {
       success: false
     });
 
-    return res.status(authResult.status || 401).json({
-      success: false,
-      error: authResult.error
-    });
+    return res
+      .status(authResult?.status || 401)
+      .json({ error: authResult?.message || 'Unauthorized' });
   }
 
   const { user } = authResult;

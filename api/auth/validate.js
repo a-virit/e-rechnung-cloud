@@ -8,8 +8,10 @@ export default async function handler(req, res) {
   }
 
   const authResult = await authenticateUser(req);
-  if (!authResult.success) {
-    return res.status(authResult.status || 401).json(authResult);
+  if (!authResult || authResult.status !== 200) {
+    return res
+      .status(authResult?.status || 401)
+      .json({ error: authResult?.message || 'Unauthorized' });
   }
 
   const { user } = authResult;

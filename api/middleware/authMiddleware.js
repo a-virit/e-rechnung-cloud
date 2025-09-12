@@ -8,25 +8,28 @@ const JWT_SECRET = process.env.JWT_SECRET;
  * Authentifizierung prüfen
  */
 export async function authenticateUser(req) {
+  const authHeader = req?.headers?.authorization;
+  if (!authHeader) {
+    return { status: 401, message: 'Missing Authorization header' };
+  }
+
   try {
-    const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
-      return { 
-        success: false, 
-        error: 'Zugriff verweigert - Kein Token vorhanden',
-        status: 401 
+      return {
+        status: 401,
+        message: 'Zugriff verweigert - Kein Token vorhanden'
       };
     }
 
     // Token verifizieren
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     // Support-User (super@user.com)
     if (decoded.isSupport && decoded.email === process.env.SUPPORT_EMAIL) {
       return {
-        success: true,
+        status: 200,
         user: {
           id: decoded.userId,
           email: decoded.email,
@@ -44,15 +47,14 @@ export async function authenticateUser(req) {
     const user = users.find(u => u.id === decoded.userId && u.isActive);
 
     if (!user) {
-      return { 
-        success: false, 
-        error: 'Benutzer nicht gefunden oder deaktiviert',
-        status: 401 
+      return {
+        status: 401,
+        message: 'Benutzer nicht gefunden oder deaktiviert'
       };
     }
 
-    return { 
-      success: true, 
+    return {
+      status: 200,
       user: {
         id: user.id,
         email: user.email,
@@ -66,26 +68,23 @@ export async function authenticateUser(req) {
 
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
-      return { 
-        success: false, 
-        error: 'Token abgelaufen - bitte erneut anmelden',
-        status: 401 
+      return {
+        status: 401,
+        message: 'Token abgelaufen - bitte erneut anmelden'
       };
     }
-    
+
     if (error.name === 'JsonWebTokenError') {
-      return { 
-        success: false, 
-        error: 'Ungültiger Token',
-        status: 401 
+      return {
+        status: 401,
+        message: 'Ungültiger Token'
       };
     }
 
     console.error('Auth middleware error:', error);
-    return { 
-      success: false, 
-      error: 'Authentifizierungsfehler',
-      status: 500 
+    return {
+      status: 500,
+      message: 'Authentifizierungsfehler'
     };
   }
 }
@@ -98,7 +97,7 @@ export function hasPermission(user, resource, action) {
     return false;
   }
 
-   // 🔧 KORRIGIERT: Support und Admin haben alle Rechte
+  // 🔧 KORRIGIERT: Support und Admin haben alle Rechte
   if (user.role === 'admin' || user.role === 'support' || user.isSupport === true) {
     console.log(`✅ Admin/Support access granted for ${user.email} (${user.role}, isSupport: ${user.isSupport})`);
     return true;
@@ -108,7 +107,7 @@ export function hasPermission(user, resource, action) {
   const rolePermissions = {
     user: {
       customers: ['read', 'write'],
-      invoices: ['read', 'write'], 
+      invoices: ['read', 'write'],
       config: ['read'],
       dashboard: ['read']
     },
@@ -146,36 +145,33 @@ export function hasPermission(user, resource, action) {
  */
 export function withAuth(requiredResource, requiredAction) {
   return async function authWrapper(req, res, next) {
-    const authResult = await authenticateUser(req);
-    
-    if (!authResult.success) {
-      return res.status(authResult.status || 401).json({
-        success: false,
-        error: authResult.error
-      });
+    const authResult = await authenticateUser(req, res);
+    if (!authResult || authResult.status !== 200) {
+      return res
+        .status(authResult?.status || 401)
+        .json({ error: authResult?.message || 'Unauthorized' });
     }
 
     // Berechtigungen prüfen (falls angegeben)
     if (requiredResource && requiredAction) {
       const hasAccess = hasPermission(authResult.user, requiredResource, requiredAction);
-      
+
       if (!hasAccess) {
         console.log(`❌ Permission denied: ${authResult.user.email} tried ${requiredAction} on ${requiredResource}`);
-        return res.status(403).json({
-          success: false,
-          error: `Keine Berechtigung für ${requiredAction} auf ${requiredResource}`
-        });
+        return res
+          .status(403)
+          .json({ error: `Keine Berechtigung für ${requiredAction} auf ${requiredResource}` });
       }
     }
 
     // User für weitere Verarbeitung anhängen
     req.user = authResult.user;
-    
+
     // Für Express: next() aufrufen, für Vercel: direkt weiterleiten
     if (typeof next === 'function') {
       return next();
     }
-    
+
     return authResult; // Für direkte Verwendung in Vercel-Funktionen
   };
 }
@@ -201,6 +197,6 @@ export function logSecurityEvent(type, user, details = {}) {
   };
 
   console.log(`🔒 SECURITY LOG [${type}]:`, JSON.stringify(logEntry));
-  
+
   // Hier könnte später ein echtes Logging-System angebunden werden
 }
