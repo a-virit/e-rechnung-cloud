@@ -14,7 +14,6 @@ async function handler(req, res) {
   const companyKey = `e-company-${req.user.companyId}`;
 
   try {
-    // Aktuelle Firmendaten laden
     const company = await kv.get(companyKey) || {};
 
     if (req.method === 'GET') {
@@ -30,9 +29,8 @@ async function handler(req, res) {
           success: false,
           error: 'Genau zwei Kontakte sind erforderlich'
         });
-      }
+        }
 
-      // Validierung der Pflichtfelder
       for (const contact of mainContacts) {
         if (!contact.name || !contact.email || !contact.phone) {
           return res.status(400).json({
