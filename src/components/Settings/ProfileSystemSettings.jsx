@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  User, Settings, Shield, Save, Eye, EyeOff, Mail, Building, 
-  Key, Lock, AlertTriangle, Check, X, FileText, Bell, 
+import {
+  User, Settings, Shield, Save, Eye, EyeOff, Mail, Building,
+  Key, Lock, AlertTriangle, Check, X, FileText, Bell,
   Smartphone, Globe, Database, Activity, Users, CreditCard,
   Download, Upload, Trash2, Copy, RefreshCw, Calendar
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import MainContacts from './MainContacts';
+
 
 const ProfileSystemSettings = () => {
   // State Management
@@ -103,6 +105,7 @@ const ProfileSystemSettings = () => {
     { id: 'security', label: 'Sicherheit', icon: Shield, adminOnly: true },
     { id: 'email', label: 'E-Mail', icon: Mail, adminOnly: true },
     { id: 'notifications', label: 'Benachrichtigungen', icon: Bell, adminOnly: false },
+    { id: 'contacts', label: 'Hauptkontakte', icon: Users, adminOnly: true },
     { id: 'system', label: 'System', icon: Settings, adminOnly: true }
   ].filter(tab => !tab.adminOnly || user.role === 'admin');
 
@@ -119,15 +122,15 @@ const ProfileSystemSettings = () => {
     }
 
     setSaving(true);
-    
+
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       logSecurityEvent('PASSWORD_CHANGED', {
         userId: user.id,
         success: true
       });
-      
+
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setShowPasswordForm(false);
       actions.showSuccess('Passwort erfolgreich geändert');
@@ -145,19 +148,19 @@ const ProfileSystemSettings = () => {
   // Two-Factor Authentication Toggle
   const toggleTwoFactor = async () => {
     setSaving(true);
-    
+
     try {
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       const newStatus = !user.twoFactorEnabled;
       setUser(prev => ({ ...prev, twoFactorEnabled: newStatus }));
-      
+
       logSecurityEvent('TWO_FACTOR_TOGGLED', {
         userId: user.id,
         enabled: newStatus,
         success: true
       });
-      
+
       actions.showInfo(newStatus ? '2FA aktiviert' : '2FA deaktiviert');
     } catch (error) {
       actions.showError('Fehler beim Ändern der 2FA-Einstellungen');
@@ -169,16 +172,16 @@ const ProfileSystemSettings = () => {
   // Save Configuration
   const saveConfig = async (section) => {
     setSaving(true);
-    
+
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       logSecurityEvent('CONFIG_UPDATED', {
         section,
         userId: user.id,
         success: true
       });
-      
+
       setUnsavedChanges(false);
       actions.showInfo(`${section}-Einstellungen gespeichert`);
     } catch (error) {
@@ -222,7 +225,7 @@ const ProfileSystemSettings = () => {
           <User className="w-5 h-5 mr-2" />
           Persönliche Informationen
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
@@ -236,7 +239,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">E-Mail *</label>
             <input
@@ -249,7 +252,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Telefon</label>
             <input
@@ -262,7 +265,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Abteilung</label>
             <input
@@ -295,7 +298,7 @@ const ProfileSystemSettings = () => {
           <Shield className="w-5 h-5 mr-2" />
           Sicherheitseinstellungen
         </h3>
-        
+
         {/* Password Change */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
@@ -307,7 +310,7 @@ const ProfileSystemSettings = () => {
               {showPasswordForm ? 'Abbrechen' : 'Passwort ändern'}
             </button>
           </div>
-          
+
           {showPasswordForm && (
             <div className="bg-gray-50 p-4 rounded-lg space-y-4">
               <div className="relative">
@@ -328,7 +331,7 @@ const ProfileSystemSettings = () => {
                   {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              
+
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Neues Passwort *
@@ -347,7 +350,7 @@ const ProfileSystemSettings = () => {
                   {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              
+
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Passwort bestätigen *
@@ -366,7 +369,7 @@ const ProfileSystemSettings = () => {
                   {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              
+
               <button
                 onClick={handlePasswordChange}
                 disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword || saving}
@@ -390,11 +393,10 @@ const ProfileSystemSettings = () => {
           <button
             onClick={toggleTwoFactor}
             disabled={saving}
-            className={`px-4 py-2 rounded-md font-medium ${
-              user.twoFactorEnabled
+            className={`px-4 py-2 rounded-md font-medium ${user.twoFactorEnabled
                 ? 'bg-red-600 text-white hover:bg-red-700'
                 : 'bg-green-600 text-white hover:bg-green-700'
-            } disabled:opacity-50 flex items-center`}
+              } disabled:opacity-50 flex items-center`}
           >
             <Smartphone className="w-4 h-4 mr-2" />
             {saving ? 'Ändere...' : (user.twoFactorEnabled ? 'Deaktivieren' : 'Aktivieren')}
@@ -412,7 +414,7 @@ const ProfileSystemSettings = () => {
           <Building className="w-5 h-5 mr-2" />
           Unternehmensdaten
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">Firmenname *</label>
@@ -426,7 +428,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Steuernummer</label>
             <input
@@ -439,7 +441,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">USt-Satz (%)</label>
             <input
@@ -455,7 +457,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
             <textarea
@@ -468,7 +470,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Telefon</label>
             <input
@@ -481,7 +483,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">E-Mail</label>
             <input
@@ -494,7 +496,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
             <input
@@ -521,16 +523,16 @@ const ProfileSystemSettings = () => {
           </button>
         </div>
       </div>
-      
+
       {/* Company Logo Upload */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold mb-4">Firmenlogo</h3>
-        
+
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
           <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
           <p className="text-sm text-gray-600 mb-2">Logo hochladen (PNG, JPG, SVG)</p>
           <p className="text-xs text-gray-500">Max. 2MB, empfohlene Größe: 200x80px</p>
-          
+
           <button className="mt-4 bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 flex items-center mx-auto">
             <Upload className="w-4 h-4 mr-2" />
             Datei auswählen
@@ -549,7 +551,7 @@ const ProfileSystemSettings = () => {
           <Lock className="w-5 h-5 mr-2" />
           Passwort-Richtlinien
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -570,7 +572,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Passwort-Alter (Tage)
@@ -591,7 +593,7 @@ const ProfileSystemSettings = () => {
             />
           </div>
         </div>
-        
+
         <div className="mt-4 space-y-3">
           {[
             { key: 'requireUppercase', label: 'Großbuchstaben erforderlich' },
@@ -623,7 +625,7 @@ const ProfileSystemSettings = () => {
           <Activity className="w-5 h-5 mr-2" />
           Zugriffskontrolle
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -641,7 +643,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Max. Fehlversuche
@@ -659,7 +661,7 @@ const ProfileSystemSettings = () => {
             />
           </div>
         </div>
-        
+
         <div className="mt-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             IP-Whitelist (optional)
@@ -710,14 +712,14 @@ const ProfileSystemSettings = () => {
           </button>
         </div>
       </div>
-      
+
       {/* Security Audit */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center">
           <Eye className="w-5 h-5 mr-2" />
           Sicherheits-Audit
         </h3>
-        
+
         <div className="space-y-3">
           <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center">
@@ -726,7 +728,7 @@ const ProfileSystemSettings = () => {
             </div>
             <span className="text-xs text-green-600">OK</span>
           </div>
-          
+
           <div className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div className="flex items-center">
               <AlertTriangle className="w-4 h-4 text-yellow-600 mr-2" />
@@ -734,7 +736,7 @@ const ProfileSystemSettings = () => {
             </div>
             <span className="text-xs text-yellow-600">WARNUNG</span>
           </div>
-          
+
           <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center">
               <Check className="w-4 h-4 text-green-600 mr-2" />
@@ -742,7 +744,7 @@ const ProfileSystemSettings = () => {
             </div>
             <span className="text-xs text-green-600">OK</span>
           </div>
-          
+
           <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center">
               <Check className="w-4 h-4 text-green-600 mr-2" />
@@ -751,9 +753,9 @@ const ProfileSystemSettings = () => {
             <span className="text-xs text-green-600">OK</span>
           </div>
         </div>
-        
+
         <div className="mt-4 text-center">
-          <button 
+          <button
             onClick={() => actions.showInfo('Vollständiger Sicherheitsscan wird durchgeführt...')}
             className="text-blue-600 hover:text-blue-800 text-sm font-medium"
           >
@@ -772,7 +774,7 @@ const ProfileSystemSettings = () => {
           <Mail className="w-5 h-5 mr-2" />
           E-Mail-Konfiguration
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Provider</label>
@@ -789,7 +791,7 @@ const ProfileSystemSettings = () => {
               <option value="outlook">Outlook</option>
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">SMTP Server</label>
             <input
@@ -802,7 +804,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Port</label>
             <input
@@ -815,7 +817,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Verschlüsselung</label>
             <select
@@ -831,7 +833,7 @@ const ProfileSystemSettings = () => {
               <option value="none">Keine (unsicher)</option>
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Absender-Name</label>
             <input
@@ -844,7 +846,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Absender E-Mail</label>
             <input
@@ -857,7 +859,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Reply-To E-Mail</label>
             <input
@@ -870,7 +872,7 @@ const ProfileSystemSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Tägl. Versand-Limit</label>
             <input
@@ -910,7 +912,7 @@ const ProfileSystemSettings = () => {
             <Mail className="w-4 h-4 mr-2" />
             Test-E-Mail senden
           </button>
-          
+
           <button
             onClick={() => saveConfig('E-Mail')}
             disabled={!unsavedChanges || saving}
@@ -932,49 +934,48 @@ const ProfileSystemSettings = () => {
           <Bell className="w-5 h-5 mr-2" />
           Benachrichtigungseinstellungen
         </h3>
-        
+
         <div className="space-y-4">
           {[
-            { 
-              key: 'emailNotifications', 
-              label: 'E-Mail-Benachrichtigungen', 
+            {
+              key: 'emailNotifications',
+              label: 'E-Mail-Benachrichtigungen',
               desc: 'Allgemeine E-Mail-Benachrichtigungen erhalten',
               critical: false
             },
-            { 
-              key: 'invoiceCreated', 
-              label: 'Neue Rechnungen', 
+            {
+              key: 'invoiceCreated',
+              label: 'Neue Rechnungen',
               desc: 'Benachrichtigung bei neuen Rechnungen',
               critical: false
             },
-            { 
-              key: 'paymentReceived', 
-              label: 'Zahlungseingänge', 
+            {
+              key: 'paymentReceived',
+              label: 'Zahlungseingänge',
               desc: 'Benachrichtigung bei Zahlungseingängen',
               critical: false
             },
-            { 
-              key: 'systemAlerts', 
-              label: 'System-Warnungen', 
+            {
+              key: 'systemAlerts',
+              label: 'System-Warnungen',
               desc: 'Wichtige System- und Sicherheitswarnungen',
               critical: true
             },
-            { 
-              key: 'weeklyReports', 
-              label: 'Wochenberichte', 
+            {
+              key: 'weeklyReports',
+              label: 'Wochenberichte',
               desc: 'Wöchentliche Zusammenfassung per E-Mail',
               critical: false
             },
-            { 
-              key: 'securityAlerts', 
-              label: 'Sicherheitswarnungen', 
+            {
+              key: 'securityAlerts',
+              label: 'Sicherheitswarnungen',
               desc: 'Benachrichtigungen bei Sicherheitsereignissen',
               critical: true
             }
           ].map(({ key, label, desc, critical }) => (
-            <div key={key} className={`flex items-center justify-between p-4 rounded-lg ${
-              critical ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
-            }`}>
+            <div key={key} className={`flex items-center justify-between p-4 rounded-lg ${critical ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
+              }`}>
               <div>
                 <h4 className={`font-medium ${critical ? 'text-red-800' : 'text-gray-900'}`}>
                   {label}
@@ -1028,7 +1029,7 @@ const ProfileSystemSettings = () => {
           <Database className="w-5 h-5 mr-2" />
           System-Informationen
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3">
             <div className="flex justify-between items-center">
@@ -1054,7 +1055,7 @@ const ProfileSystemSettings = () => {
               </span>
             </div>
           </div>
-          
+
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Aktive Benutzer:</span>
@@ -1069,7 +1070,7 @@ const ProfileSystemSettings = () => {
               <span className="text-sm font-medium">
                 2.4 GB / 10 GB
                 <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                  <div className="bg-blue-600 h-1.5 rounded-full" style={{width: '24%'}}></div>
+                  <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: '24%' }}></div>
                 </div>
               </span>
             </div>
@@ -1079,7 +1080,7 @@ const ProfileSystemSettings = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
             onClick={() => alert('System-Status wird aktualisiert...')}
@@ -1088,7 +1089,7 @@ const ProfileSystemSettings = () => {
             <RefreshCw className="w-4 h-4 mr-2" />
             Status aktualisieren
           </button>
-          
+
           <button
             onClick={() => alert('System-Diagnose wird gestartet...')}
             className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 flex items-center justify-center"
@@ -1096,7 +1097,7 @@ const ProfileSystemSettings = () => {
             <Activity className="w-4 h-4 mr-2" />
             System-Diagnose
           </button>
-          
+
           <button
             onClick={() => alert('Performance-Report wird erstellt...')}
             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center justify-center"
@@ -1113,7 +1114,7 @@ const ProfileSystemSettings = () => {
           <Download className="w-5 h-5 mr-2" />
           Datensicherung & Export
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             onClick={exportConfig}
@@ -1122,7 +1123,7 @@ const ProfileSystemSettings = () => {
             <Download className="w-4 h-4 mr-2" />
             Konfiguration exportieren
           </button>
-          
+
           <button
             onClick={() => alert('Vollständiges Backup wird erstellt...')}
             className="bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 flex items-center justify-center"
@@ -1130,7 +1131,7 @@ const ProfileSystemSettings = () => {
             <Database className="w-4 h-4 mr-2" />
             Vollständiges Backup
           </button>
-          
+
           <button
             onClick={() => alert('Datenexport wird vorbereitet...')}
             className="bg-purple-600 text-white px-4 py-3 rounded-md hover:bg-purple-700 flex items-center justify-center"
@@ -1138,7 +1139,7 @@ const ProfileSystemSettings = () => {
             <FileText className="w-4 h-4 mr-2" />
             Alle Daten exportieren
           </button>
-          
+
           <button
             onClick={() => {
               if (window.confirm('Möchten Sie wirklich alle Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden!')) {
@@ -1152,7 +1153,7 @@ const ProfileSystemSettings = () => {
             Alle Daten löschen
           </button>
         </div>
-        
+
         <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
           <div className="flex items-center">
             <AlertTriangle className="w-4 h-4 text-yellow-600 mr-2" />
@@ -1169,7 +1170,7 @@ const ProfileSystemSettings = () => {
           <Activity className="w-5 h-5 mr-2" />
           Sicherheitsprotokolle (letzte 10 Einträge)
         </h3>
-        
+
         <div className="space-y-3">
           {[
             { time: '29.08.2025 14:23', event: 'Benutzer angemeldet', user: 'max@beispiel-firma.de', status: 'success', ip: '192.168.1.100' },
@@ -1181,11 +1182,10 @@ const ProfileSystemSettings = () => {
           ].map((log, index) => (
             <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
               <div className="flex items-center">
-                <div className={`w-2 h-2 rounded-full mr-3 ${
-                  log.status === 'success' ? 'bg-green-500' :
-                  log.status === 'warning' ? 'bg-yellow-500' :
-                  log.status === 'error' ? 'bg-red-500' : 'bg-blue-500'
-                }`} />
+                <div className={`w-2 h-2 rounded-full mr-3 ${log.status === 'success' ? 'bg-green-500' :
+                    log.status === 'warning' ? 'bg-yellow-500' :
+                      log.status === 'error' ? 'bg-red-500' : 'bg-blue-500'
+                  }`} />
                 <div>
                   <p className="text-sm font-medium">{log.event}</p>
                   <p className="text-xs text-gray-600">{log.user} • {log.ip}</p>
@@ -1195,15 +1195,15 @@ const ProfileSystemSettings = () => {
             </div>
           ))}
         </div>
-        
+
         <div className="mt-4 flex justify-between">
-          <button 
+          <button
             onClick={() => alert('Vollständige Protokolle werden geöffnet...')}
             className="text-blue-600 hover:text-blue-800 text-sm font-medium"
           >
             Alle Protokolle anzeigen
           </button>
-          
+
           <button
             onClick={() => alert('Protokolle werden exportiert...')}
             className="text-gray-600 hover:text-gray-800 text-sm font-medium flex items-center"
@@ -1221,7 +1221,7 @@ const ProfileSystemSettings = () => {
             <Users className="w-5 h-5 mr-2" />
             Benutzerverwaltung
           </h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={() => alert('Benutzer-Liste wird geöffnet...')}
@@ -1230,7 +1230,7 @@ const ProfileSystemSettings = () => {
               <Users className="w-4 h-4 mr-2" />
               Benutzer verwalten
             </button>
-            
+
             <button
               onClick={() => alert('Neuer Benutzer wird erstellt...')}
               className="bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 flex items-center justify-center"
@@ -1238,7 +1238,7 @@ const ProfileSystemSettings = () => {
               <User className="w-4 h-4 mr-2" />
               Benutzer hinzufügen
             </button>
-            
+
             <button
               onClick={() => alert('Berechtigungen werden angezeigt...')}
               className="bg-purple-600 text-white px-4 py-3 rounded-md hover:bg-purple-700 flex items-center justify-center"
@@ -1262,7 +1262,7 @@ const ProfileSystemSettings = () => {
               <h1 className="text-2xl font-bold text-gray-900">Einstellungen</h1>
               <p className="text-gray-600 mt-1">Profile und Systemkonfiguration verwalten</p>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               {unsavedChanges && (
                 <div className="flex items-center text-yellow-600">
@@ -1270,7 +1270,7 @@ const ProfileSystemSettings = () => {
                   <span className="text-sm font-medium">Ungespeicherte Änderungen</span>
                 </div>
               )}
-              
+
               <div className="text-right text-sm text-gray-500">
                 <div>Angemeldet als: <span className="font-medium">{user.name}</span></div>
                 <div>Rolle: <span className="font-medium capitalize">{user.role}</span></div>
@@ -1287,11 +1287,10 @@ const ProfileSystemSettings = () => {
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
-                  className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
-                    activeTab === id
+                  className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4 mr-2" />
                   {label}
@@ -1308,6 +1307,7 @@ const ProfileSystemSettings = () => {
           {activeTab === 'security' && <SecurityTab />}
           {activeTab === 'email' && <EmailTab />}
           {activeTab === 'notifications' && <NotificationsTab />}
+          {activeTab === 'contacts' && <MainContacts />}
           {activeTab === 'system' && <SystemTab />}
         </div>
 
@@ -1318,7 +1318,7 @@ const ProfileSystemSettings = () => {
             <div>
               <h4 className="font-medium text-blue-900">Sicherheitshinweis</h4>
               <p className="text-sm text-blue-800 mt-1">
-                Alle Konfigurationsänderungen werden protokolliert und überwacht. 
+                Alle Konfigurationsänderungen werden protokolliert und überwacht.
                 Sensible Daten werden verschlüsselt gespeichert und unterliegen strengen Zugriffskontrollen.
                 Bei kritischen Änderungen erhalten Administratoren automatisch eine Benachrichtigung.
               </p>
@@ -1336,7 +1336,7 @@ const ProfileSystemSettings = () => {
               <User className="w-3 h-3 mr-1" />
               Schnell zum Profil
             </button>
-            
+
             {user.role === 'admin' && (
               <>
                 <span className="text-gray-300">|</span>
@@ -1347,7 +1347,7 @@ const ProfileSystemSettings = () => {
                   <Download className="w-3 h-3 mr-1" />
                   Schnell-Export
                 </button>
-                
+
                 <span className="text-gray-300">|</span>
                 <button
                   onClick={() => setActiveTab('security')}
