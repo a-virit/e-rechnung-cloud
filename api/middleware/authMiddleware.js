@@ -144,41 +144,33 @@ export function hasPermission(user, resource, action) {
  * Middleware-Wrapper für API-Routen
  */
 export function withAuth(requiredResource, requiredAction) {
-  return async function authWrapper(req, res, next) {
-    const authResult = await authenticateUser(req);
-    if (!authResult || authResult.status !== 200) {
-      if (res) {
+  return function authWrapper(handler) {
+    return async function(req, res) {
+      const authResult = await authenticateUser(req);
+      if (!authResult || authResult.status !== 200) {
         return res
           .status(authResult?.status || 401)
           .json({ error: authResult?.message || 'Unauthorized' });
       }
-      return authResult;
-    }
 
-    // Berechtigungen prüfen (falls angegeben)
-    if (requiredResource && requiredAction) {
-      const hasAccess = hasPermission(authResult.user, requiredResource, requiredAction);
+      // Berechtigungen prüfen (falls angegeben)
+      if (requiredResource && requiredAction) {
+        const hasAccess = hasPermission(authResult.user, requiredResource, requiredAction);
 
-      if (!hasAccess) {
-        console.log(`❌ Permission denied: ${authResult.user.email} tried ${requiredAction} on ${requiredResource}`);
-        if (res) {
+        if (!hasAccess) {
+          console.log(`❌ Permission denied: ${authResult.user.email} tried ${requiredAction} on ${requiredResource}`);
           return res
             .status(403)
             .json({ error: `Keine Berechtigung für ${requiredAction} auf ${requiredResource}` });
         }
-        return { status: 403, message: `Keine Berechtigung für ${requiredAction} auf ${requiredResource}` };
       }
-    }
 
-    // User für weitere Verarbeitung anhängen
-    req.user = authResult.user;
+      // User für weitere Verarbeitung anhängen
+      req.user = authResult.user;
 
-    // Für Express: next() aufrufen, für Vercel: direkt weiterleiten
-    if (typeof next === 'function') {
-      return next();
-    }
-
-    return authResult; // Für direkte Verwendung in Vercel-Funktionen
+      // Handler ausführen
+      return handler(req, res);
+    };
   };
 }
 

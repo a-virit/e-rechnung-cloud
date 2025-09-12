@@ -12,9 +12,16 @@ const MainContacts = () => {
 
   useEffect(() => {
     const loadContacts = async () => {
-      try {
-        const token = authService.getToken();
-        const res = await fetch('/api/company/contacts', {
+    try {
+      // Prüfung ob API verfügbar ist
+      if (!window.location.origin.includes('localhost') && !window.location.origin.includes('vercel.app')) {
+        console.log('API nicht verfügbar in dieser Umgebung');
+        setLoading(false);
+        return;
+      }
+
+      const token = authService.getToken();
+      const res = await fetch('/api/company/contacts', {
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {})
