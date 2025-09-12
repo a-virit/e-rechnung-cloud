@@ -106,6 +106,7 @@ const ProfileSystemSettings = () => {
     { id: 'email', label: 'E-Mail', icon: Mail, adminOnly: true },
     { id: 'notifications', label: 'Benachrichtigungen', icon: Bell, adminOnly: false },
     { id: 'contacts', label: 'Hauptkontakte', icon: Users, adminOnly: true },
+    { id: 'sso', label: 'Single Sign-On', icon: Shield, adminOnly: true },
     { id: 'system', label: 'System', icon: Settings, adminOnly: true }
   ].filter(tab => !tab.adminOnly || user.role === 'admin');
 
@@ -1318,6 +1319,7 @@ const ProfileSystemSettings = () => {
               </div>
             </div>
           )}
+          {activeTab === 'sso' && <SSOConfiguration />}
           {activeTab === 'system' && <SystemTab />}
         </div>
 
