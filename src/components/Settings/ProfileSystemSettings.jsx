@@ -5,10 +5,10 @@ import {
   Smartphone, Globe, Database, Activity, Users, CreditCard,
   Download, Upload, Trash2, Copy, RefreshCw, Calendar
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import MainContacts from './MainContacts';
+import { useApp } from '../../context/AppContext.jsx';
+import MainContacts from './MainContacts.jsx';
 //import SSOConfiguration from './SSOConfiguration';
-import SSOConfig from './SSOConfig';
+import SSOConfig from './SSOConfig.jsx';
 
 
 const ProfileSystemSettings = () => {
