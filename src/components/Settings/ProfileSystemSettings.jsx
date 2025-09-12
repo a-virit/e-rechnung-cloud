@@ -394,8 +394,8 @@ const ProfileSystemSettings = () => {
             onClick={toggleTwoFactor}
             disabled={saving}
             className={`px-4 py-2 rounded-md font-medium ${user.twoFactorEnabled
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-green-600 text-white hover:bg-green-700'
+              ? 'bg-red-600 text-white hover:bg-red-700'
+              : 'bg-green-600 text-white hover:bg-green-700'
               } disabled:opacity-50 flex items-center`}
           >
             <Smartphone className="w-4 h-4 mr-2" />
@@ -1183,8 +1183,8 @@ const ProfileSystemSettings = () => {
             <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
               <div className="flex items-center">
                 <div className={`w-2 h-2 rounded-full mr-3 ${log.status === 'success' ? 'bg-green-500' :
-                    log.status === 'warning' ? 'bg-yellow-500' :
-                      log.status === 'error' ? 'bg-red-500' : 'bg-blue-500'
+                  log.status === 'warning' ? 'bg-yellow-500' :
+                    log.status === 'error' ? 'bg-red-500' : 'bg-blue-500'
                   }`} />
                 <div>
                   <p className="text-sm font-medium">{log.event}</p>
@@ -1288,8 +1288,8 @@ const ProfileSystemSettings = () => {
                   key={id}
                   onClick={() => setActiveTab(id)}
                   className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <Icon className="w-4 h-4 mr-2" />
@@ -1307,7 +1307,17 @@ const ProfileSystemSettings = () => {
           {activeTab === 'security' && <SecurityTab />}
           {activeTab === 'email' && <EmailTab />}
           {activeTab === 'notifications' && <NotificationsTab />}
-          {activeTab === 'contacts' && <MainContacts />}
+          {activeTab === 'contacts' && (
+            <div className="space-y-6">
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                  <Users className="w-5 h-5 mr-2" />
+                  Hauptkontakte
+                </h3>
+                <MainContacts />
+              </div>
+            </div>
+          )}
           {activeTab === 'system' && <SystemTab />}
         </div>
 
