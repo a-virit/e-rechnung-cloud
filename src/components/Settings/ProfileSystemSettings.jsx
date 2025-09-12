@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import MainContacts from './MainContacts';
+import SSOConfiguration from './SSOConfiguration';
 
 
 const ProfileSystemSettings = () => {
