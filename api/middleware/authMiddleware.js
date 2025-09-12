@@ -145,11 +145,14 @@ export function hasPermission(user, resource, action) {
  */
 export function withAuth(requiredResource, requiredAction) {
   return async function authWrapper(req, res, next) {
-    const authResult = await authenticateUser(req, res);
+    const authResult = await authenticateUser(req);
     if (!authResult || authResult.status !== 200) {
-      return res
-        .status(authResult?.status || 401)
-        .json({ error: authResult?.message || 'Unauthorized' });
+      if (res) {
+        return res
+          .status(authResult?.status || 401)
+          .json({ error: authResult?.message || 'Unauthorized' });
+      }
+      return authResult;
     }
 
     // Berechtigungen prüfen (falls angegeben)
@@ -158,9 +161,12 @@ export function withAuth(requiredResource, requiredAction) {
 
       if (!hasAccess) {
         console.log(`❌ Permission denied: ${authResult.user.email} tried ${requiredAction} on ${requiredResource}`);
-        return res
-          .status(403)
-          .json({ error: `Keine Berechtigung für ${requiredAction} auf ${requiredResource}` });
+        if (res) {
+          return res
+            .status(403)
+            .json({ error: `Keine Berechtigung für ${requiredAction} auf ${requiredResource}` });
+        }
+        return { status: 403, message: `Keine Berechtigung für ${requiredAction} auf ${requiredResource}` };
       }
     }
 
