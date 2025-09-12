@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import MainContacts from './MainContacts';
-import SSOConfiguration from './SSOConfiguration';
+//import SSOConfiguration from './SSOConfiguration';
+import SSOConfig from './SSOConfig';
 
 
 const ProfileSystemSettings = () => {
@@ -1320,7 +1321,7 @@ const ProfileSystemSettings = () => {
               </div>
             </div>
           )}
-          {activeTab === 'sso' && <SSOConfiguration />}
+          {activeTab === 'sso' && <SSOConfig />}
           {activeTab === 'system' && <SystemTab />}
         </div>
 

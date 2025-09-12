@@ -1,6 +1,7 @@
 // api/config.js - Konfigurationsverwaltung mit Authentifizierung
 import { getCompanyKV } from './utils/kv.js';
 import { authenticateUser, hasPermission, logSecurityEvent } from './middleware/authMiddleware.js';
+import { encrypt, decrypt } from './utils/encryption.js';
 
 const CONFIG_KEY = 'e-config';
 
@@ -40,6 +41,12 @@ Mit freundlichen Grüßen
     taxRate: 19,
     currency: 'EUR',
     paymentTerms: 30
+  },
+  sso: {
+    provider: '',
+    issuer: '',
+    clientId: '',
+    clientSecret: ''
   }
 };
 
@@ -100,6 +107,15 @@ export default async function handler(req, res) {
         await kv.set(configKey, config);
       }
 
+      // SSO-ClientSecret für Admin/Support entschlüsseln
+      if ((user.role === 'admin' || user.isSupport) && config.sso?.clientSecret) {
+        try {
+          config.sso.clientSecret = decrypt(config.sso.clientSecret);
+        } catch (e) {
+          console.error('Failed to decrypt SSO secret', e);
+        }
+      }
+
       // 🔒 SENSIBLE DATEN FILTERN (für normale User)
       let responseConfig = config;
 
@@ -110,6 +126,10 @@ export default async function handler(req, res) {
           email: {
             ...config.email,
             password: config.email.password ? '***VERBORGEN***' : ''
+          },
+          sso: {
+            ...config.sso,
+            clientSecret: config.sso?.clientSecret ? '***VERBORGEN***' : ''
           }
         };
       }
@@ -145,6 +165,16 @@ export default async function handler(req, res) {
 
       const updates = req.body;
 
+      if (updates.sso && updates.sso.clientSecret) {
+        updates.sso.clientSecret = encrypt(updates.sso.clientSecret);
+        logSecurityEvent('SENSITIVE_CONFIG_CHANGE', user, {
+          resource: 'config',
+          action: 'sso_client_secret_change',
+          success: true,
+          configKey
+        });
+      }
+
       // Firmen-spezifische Konfiguration
       const configKey = user.companyId === 'all' || user.isSupport
         ? CONFIG_KEY
@@ -169,6 +199,14 @@ export default async function handler(req, res) {
       updatedConfig.updatedBy = user.id;
 
       await kv.set(configKey, updatedConfig);
+
+      if ((user.role === 'admin' || user.isSupport) && updatedConfig.sso?.clientSecret) {
+        try {
+          updatedConfig.sso.clientSecret = decrypt(updatedConfig.sso.clientSecret);
+        } catch (e) {
+          console.error('Failed to decrypt SSO secret', e);
+        }
+      }
 
       logSecurityEvent('CONFIG_UPDATE', user, {
         resource: 'config',
