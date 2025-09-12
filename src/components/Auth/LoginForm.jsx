@@ -196,7 +196,7 @@ const LoginForm = ({ onLogin, loading = false, error = null }) => {
             )}
           </button>
 
-          {/* Demo Access */}
+          {/* Demo Access 
           <div className="bg-gray-50 rounded-md p-4 mt-6">
             <p className="text-xs text-gray-600 text-center mb-2">
               <strong>Demo-Zugang:</strong>
@@ -205,9 +205,9 @@ const LoginForm = ({ onLogin, loading = false, error = null }) => {
               E-Mail: super@user.com<br />
               Passwort: (Ihr Support-Passwort)
             </p>
-          </div>
+          </div>*/}
 
-          {/* Support Info */}
+          {/* Support Info 
           <div className="bg-gray-50 rounded-md p-4">
             <p className="text-xs text-gray-600 text-center">
               Für einen Unternehmens-Zugang kontaktieren Sie:{' '}
@@ -218,7 +218,7 @@ const LoginForm = ({ onLogin, loading = false, error = null }) => {
                 support@ihr-unternehmen.de
               </a>
             </p>
-          </div>
+          </div>*/}
         </form>
       </div>
     </div>
