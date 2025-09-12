@@ -4,6 +4,7 @@ import { Eye, EyeOff, LogIn, Building, UserPlus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 const LoginForm = ({ onLogin, onRegister, loading = false, error = null }) => {
+  
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -19,19 +20,19 @@ const LoginForm = ({ onLogin, onRegister, loading = false, error = null }) => {
     name: '',
     companyName: ''
   });
-const { actions } = useApp();
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
     if (isRegistering) {
       // Registrierung validieren
       if (registerData.password !== registerData.confirmPassword) {
-        actions.showError('Passwörter stimmen nicht überein');
+        console.log('Passwörter stimmen nicht überein');
         return;
       }
       
       if (registerData.password.length < 8) {
-        actions.showError('Passwort muss mindestens 8 Zeichen haben');
+        console.log('Passwort muss mindestens 8 Zeichen haben');
         return;
       }
       
@@ -57,7 +58,7 @@ const { actions } = useApp();
     setIsRegistering(!isRegistering);
     resetForms();
   };
-
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">

@@ -38,7 +38,7 @@ const Navigation = ({ activeTab, setActiveTab }) => {
   ];
 
   return (
-    <div className="mb-8">
+    <div className="mb-8 max-w-7xl mx-auto px-8" >
       <nav className="flex space-x-8 overflow-x-auto">
         {navItems.map((item) => (
           <NavItem

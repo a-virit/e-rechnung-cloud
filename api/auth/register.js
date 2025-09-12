@@ -77,6 +77,10 @@ export default async function handler(req, res) {
       id: companyId,
       name: companyName,
       createdAt: new Date().toISOString(),
+       mainContacts: [
+        { name: '', email: '', phone: '' },
+        { name: '', email: '', phone: '' }
+      ],
       settings: {
         company: { name: companyName },
         email: {},

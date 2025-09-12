@@ -62,6 +62,7 @@ const AuthenticatedApp = () => {
       <div className="sticky top-0 z-40 bg-white shadow-md">
         <Header setActiveTab={setActiveTab} />
         <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        <NotificationBar />
       </div>
       
       {/* Content - kein padding-top nötig bei sticky */}
