@@ -60,8 +60,16 @@ export default async function handler(req, res) {
   }
 
   // 🔒 AUTHENTIFIZIERUNG PRÜFEN
-  const authResult = await authenticateUser(req);
+  let authResult;
+  try {
+    authResult = await authenticateUser(req);
+  } catch (err) {
+    console.error("AUTH ERROR:", err.message || err);
+    return res.status(500).json({ error: "Authentication failed." });
+  }
+
   if (!authResult || authResult.status !== 200) {
+
     logSecurityEvent('UNAUTHORIZED_ACCESS', null, {
       ip: req.headers['x-forwarded-for'] || 'unknown',
       resource: 'config',

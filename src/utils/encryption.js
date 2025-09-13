@@ -21,13 +21,18 @@ export function encrypt(text) {
 
 export function decrypt(payload) {
   if (!payload) return '';
-  const buffer = Buffer.from(payload, 'base64');
-  const iv = buffer.subarray(0, IV_LENGTH);
-  const tag = buffer.subarray(IV_LENGTH, IV_LENGTH + 16);
-  const encrypted = buffer.subarray(IV_LENGTH + 16);
-  const key = getKey();
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(tag);
-  const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-  return decrypted.toString('utf8');
+  try {
+    const buffer = Buffer.from(payload, 'base64');
+    const iv = buffer.subarray(0, IV_LENGTH);
+    const tag = buffer.subarray(IV_LENGTH, IV_LENGTH + 16);
+    const encrypted = buffer.subarray(IV_LENGTH + 16);
+    const key = getKey();
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+    decipher.setAuthTag(tag);
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    return decrypted.toString('utf8');
+  } catch (err) {
+    console.error("❌ Decryption failed:", err.message);
+    return ''; // oder optional: throw new Error("Invalid encrypted data");
+  }
 }
