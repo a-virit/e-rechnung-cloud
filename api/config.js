@@ -69,7 +69,6 @@ export default async function handler(req, res) {
   }
 
   if (!authResult || authResult.status !== 200) {
-
     logSecurityEvent('UNAUTHORIZED_ACCESS', null, {
       ip: req.headers['x-forwarded-for'] || 'unknown',
       resource: 'config',
@@ -85,11 +84,9 @@ export default async function handler(req, res) {
   const { user } = authResult;
   const kv = getCompanyKV(user.companyId);
 
-
   try {
     // GET - Konfiguration laden
     if (req.method === 'GET') {
-      // 🔒 BERECHTIGUNG PRÜFEN
       if (!hasPermission(user, 'config', 'read')) {
         logSecurityEvent('PERMISSION_DENIED', user, {
           resource: 'config',
@@ -103,7 +100,6 @@ export default async function handler(req, res) {
         });
       }
 
-      // Firmen-spezifische Konfiguration laden
       const configKey = user.companyId === 'all' || user.isSupport
         ? CONFIG_KEY
         : `${CONFIG_KEY}-${user.companyId}`;
@@ -120,15 +116,14 @@ export default async function handler(req, res) {
         try {
           config.sso.clientSecret = decrypt(config.sso.clientSecret);
         } catch (e) {
-          console.error('Failed to decrypt SSO secret', e);
+          console.error('❌ Failed to decrypt SSO secret:', e.message);
+          config.sso.clientSecret = '';
         }
       }
 
-      // 🔒 SENSIBLE DATEN FILTERN (für normale User)
       let responseConfig = config;
 
       if (user.role !== 'admin' && !user.isSupport) {
-        // Passwörter für normale User entfernen
         responseConfig = {
           ...config,
           email: {
@@ -157,7 +152,6 @@ export default async function handler(req, res) {
 
     // PUT - Konfiguration aktualisieren
     if (req.method === 'PUT') {
-      // 🔒 BERECHTIGUNG PRÜFEN (Nur Admin/Support darf Config ändern)
       if (!hasPermission(user, 'config', 'write')) {
         logSecurityEvent('PERMISSION_DENIED', user, {
           resource: 'config',
@@ -173,35 +167,38 @@ export default async function handler(req, res) {
 
       const updates = req.body;
 
-      if (updates.sso && updates.sso.clientSecret) {
-        updates.sso.clientSecret = encrypt(updates.sso.clientSecret);
-        logSecurityEvent('SENSITIVE_CONFIG_CHANGE', user, {
-          resource: 'config',
-          action: 'sso_client_secret_change',
-          success: true,
-          configKey
+      // 🔒 Validierung vor Übernahme
+      const issues = validateConfigSecurity(updates, user);
+      if (issues.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Ungültige Konfiguration: ' + issues.join(', ')
         });
       }
 
-      // Firmen-spezifische Konfiguration
+      if (updates.sso && updates.sso.clientSecret) {
+        try {
+          updates.sso.clientSecret = encrypt(updates.sso.clientSecret);
+        } catch (e) {
+          console.error("❌ Failed to encrypt SSO secret:", e.message);
+          return res.status(400).json({
+            success: false,
+            error: "Ungültiges SSO-Secret"
+          });
+        }
+        logSecurityEvent('SENSITIVE_CONFIG_CHANGE', user, {
+          resource: 'config',
+          action: 'sso_client_secret_change',
+          success: true
+        });
+      }
+
       const configKey = user.companyId === 'all' || user.isSupport
         ? CONFIG_KEY
         : `${CONFIG_KEY}-${user.companyId}`;
 
       let currentConfig = await kv.get(configKey) || DEFAULT_CONFIG;
 
-      // 🔒 SENSIBLE ÄNDERUNGEN VALIDIEREN
-      if (updates.email && updates.email.password) {
-        // E-Mail-Passwort-Änderung loggen
-        logSecurityEvent('SENSITIVE_CONFIG_CHANGE', user, {
-          resource: 'config',
-          action: 'email_password_change',
-          success: true,
-          configKey
-        });
-      }
-
-      // Deep merge der Konfiguration
       const updatedConfig = mergeDeep(currentConfig, updates);
       updatedConfig.updatedAt = new Date().toISOString();
       updatedConfig.updatedBy = user.id;
@@ -212,7 +209,8 @@ export default async function handler(req, res) {
         try {
           updatedConfig.sso.clientSecret = decrypt(updatedConfig.sso.clientSecret);
         } catch (e) {
-          console.error('Failed to decrypt SSO secret', e);
+          console.error('❌ Failed to decrypt SSO secret after update:', e.message);
+          updatedConfig.sso.clientSecret = '';
         }
       }
 
@@ -253,10 +251,9 @@ export default async function handler(req, res) {
   }
 }
 
-// Helper function für deep merge
+// Helper Deep Merge
 function mergeDeep(target, source) {
   const result = { ...target };
-
   for (const key in source) {
     if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
       result[key] = mergeDeep(result[key] || {}, source[key]);
@@ -264,28 +261,20 @@ function mergeDeep(target, source) {
       result[key] = source[key];
     }
   }
-
   return result;
 }
 
-// 🔒 ZUSÄTZLICHE SICHERHEITS-VALIDIERUNG für Config-Updates
+// 🔒 Sicherheitsvalidierung für Updates
 function validateConfigSecurity(updates, user) {
   const issues = [];
-
-  // E-Mail-Provider-Änderungen nur für Admin/Support
   if (updates.email?.provider && user.role !== 'admin' && !user.isSupport) {
     issues.push('Nur Administratoren dürfen E-Mail-Provider ändern');
   }
-
-  // Gefährliche SMTP-Einstellungen prüfen
   if (updates.email?.host && !updates.email.host.includes('.')) {
     issues.push('Ungültiger SMTP-Server');
   }
-
-  // Unternehmensdaten-Änderungen tracken
   if (updates.company?.taxId && user.role !== 'admin' && !user.isSupport) {
     issues.push('Nur Administratoren dürfen Steuernummer ändern');
   }
-
   return issues;
 }

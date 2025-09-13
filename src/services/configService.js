@@ -1,4 +1,4 @@
-// src/services/configService.js - Mit Authentifizierung
+// src/services/configService.js - Mit Authentifizierung & robuster Fehlerbehandlung
 import authService from './authService';
 
 class ConfigService {
@@ -27,6 +27,16 @@ class ConfigService {
     throw error;
   }
 
+  // Hilfsfunktion: JSON sicher parsen
+  async safeJson(response) {
+    try {
+      return await response.json();
+    } catch (err) {
+      console.error("⚠️ Invalid JSON in response:", err);
+      throw new Error("Ungültige Server-Antwort (kein JSON)");
+    }
+  }
+
   async get() {
     try {
       const response = await fetch(`${this.baseURL}/api/config`, {
@@ -38,19 +48,19 @@ class ConfigService {
         this.handleAuthError(new Error('Failed to fetch config'), response);
       }
 
-      const result = await response.json();
-      
+      const result = await this.safeJson(response);
+
       if (!result.success) {
         throw new Error(result.error || 'Fehler beim Laden der Konfiguration');
       }
 
       return result.data || {};
     } catch (error) {
-      console.error('Error fetching config:', error);
+      console.error('❌ Error fetching config:', error);
       if (error.message.includes('Sitzung abgelaufen') || error.message.includes('Keine Berechtigung')) {
         throw error; // Auth-Fehler weiterwerfen
       }
-      throw new Error('Verbindungsfehler beim Laden der Konfiguration');
+      throw new Error('Verbindungsfehler beim Laden der Konfiguration: ' + error.message);
     }
   }
 
@@ -66,15 +76,15 @@ class ConfigService {
         this.handleAuthError(new Error('Failed to update config'), response);
       }
 
-      const result = await response.json();
-      
+      const result = await this.safeJson(response);
+
       if (!result.success) {
         throw new Error(result.error || 'Fehler beim Speichern der Konfiguration');
       }
 
       return result;
     } catch (error) {
-      console.error('Error updating config:', error);
+      console.error('❌ Error updating config:', error);
       if (error.message.includes('Sitzung abgelaufen') || error.message.includes('Keine Berechtigung')) {
         throw error;
       }
@@ -98,15 +108,15 @@ class ConfigService {
         this.handleAuthError(new Error('Failed to send test email'), response);
       }
 
-      const result = await response.json();
-      
+      const result = await this.safeJson(response);
+
       if (!result.success) {
         throw new Error(result.error || 'Test-E-Mail-Versand fehlgeschlagen');
       }
 
       return result;
     } catch (error) {
-      console.error('Error sending test email:', error);
+      console.error('❌ Error sending test email:', error);
       if (error.message.includes('Sitzung abgelaufen') || error.message.includes('Keine Berechtigung')) {
         throw error;
       }
